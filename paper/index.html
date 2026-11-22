@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Middleground Protocol (AMP)</title>
+<style>
+:root{--ink:#1d1d1f;--soft:#55555a;--rule:#d9d6cf;--bg:#fdfcf9;--plan:#f2efe8;--accent:#9a4f12;--blue:#2c5a85;--green:#24685a}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.65 Charter,"Bitstream Charter","Sitka Text",Cambria,Georgia,serif;-webkit-text-size-adjust:100%}
+header.top{font:14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;gap:18px;padding:12px 24px;border-bottom:1px solid var(--rule);background:#fff}
+header.top a{color:var(--soft);text-decoration:none}header.top a.on{color:var(--ink);font-weight:600}header.top .right{margin-left:auto;display:flex;gap:18px}
+.layout{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:240px minmax(0,700px);gap:56px;padding:40px 24px 80px}
+nav.toc{position:sticky;top:24px;align-self:start;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;max-height:calc(100vh - 48px);overflow:auto}
+nav.toc b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin:0 0 8px}
+nav.toc ol{list-style:none;margin:0;padding:0}nav.toc li{margin:3px 0}nav.toc li.sub{padding-left:14px;font-size:13px}
+nav.toc a{color:var(--soft);text-decoration:none}nav.toc a:hover{color:var(--ink)}
+article{min-width:0}
+h1{font-size:40px;line-height:1.15;margin:0 0 10px;font-weight:600;letter-spacing:-.01em}
+.subtitle{font-size:22px;font-style:italic;color:var(--soft);margin:0 0 18px;line-height:1.35}
+.byline{font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--soft);margin:0 0 36px;padding-bottom:22px;border-bottom:1px solid var(--rule)}
+h2{font-size:26px;line-height:1.25;margin:56px 0 6px;font-weight:600}
+h3{font-size:20px;margin:34px 0 4px;font-weight:600}
+.abstract{margin:0 0 8px}
+.abstract h2{font:600 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.1em;text-transform:uppercase;margin:0 0 10px;color:var(--soft)}
+.lead{font-style:italic;color:#3a3a3e;margin:0 0 18px}
+p{margin:0 0 16px}
+a{color:var(--blue)}
+figure{margin:26px 0 30px}
+figure svg{width:100%;height:auto;display:block}
+figcaption{font:14.5px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--soft);margin-top:10px}
+figcaption b{color:var(--ink)}
+figure img{width:100%;height:auto;display:block;border:1px solid var(--rule);border-radius:8px;background:#fff}
+figure .pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+figure .narrow{max-width:420px;margin:0 auto}
+pre.cmd{font:13.5px/1.55 ui-monospace,Consolas,monospace;background:#f2efe8;border-radius:6px;padding:10px 14px;overflow:auto}
+@media (max-width:640px){figure .pair{grid-template-columns:1fr}}
+.plan{background:var(--plan);border-left:3px solid var(--accent);padding:12px 18px 6px;margin:0 0 20px;font:15.5px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+.plan .tag{display:block;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700;margin-bottom:4px}
+.plan ul,.plan ol{margin:4px 0 10px;padding-left:20px}.plan li{margin:3px 0}
+.fig-plan{border:1.5px dashed #b9b3a6;border-radius:6px;padding:14px 18px;margin:0 0 20px;font:14.5px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--soft)}
+@media (max-width:980px){.layout{grid-template-columns:1fr;gap:0;padding:24px 16px 60px}nav.toc{position:static;max-height:none;margin-bottom:28px;padding-bottom:16px;border-bottom:1px solid var(--rule)}h1{font-size:32px}.subtitle{font-size:19px}body{font-size:17px}}
+@media print{header.top,nav.toc{display:none}.layout{display:block;padding:0}body{background:#fff;font-size:11.5pt}h2{break-after:avoid}figure{break-inside:avoid}}
+.glance{margin:8px 0 0}
+.glance h2{margin:34px 0 12px}
+.glance p{font-size:17px}
+.glance .intro{font-style:italic;color:#3a3a3e}
+.terms{background:#f6f4ee;border:1px solid var(--rule);border-radius:8px;padding:14px 18px 10px;margin:4px 0 20px;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.terms>b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);margin-bottom:6px}
+.terms dl{margin:0 0 8px;display:grid;grid-template-columns:150px 1fr;gap:4px 14px}.terms dt{font-weight:600}.terms dd{margin:0}
+@media (max-width:640px){.terms dl{grid-template-columns:1fr}.terms dd{margin-bottom:6px}}
+table.kinds{border-collapse:collapse;width:100%;margin:6px 0 24px;font:14.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+table.kinds th,table.kinds td{border-bottom:1px solid var(--rule);padding:7px 8px;text-align:left;vertical-align:top}
+table.kinds th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft)}
+ol.refs{font-size:15.5px;padding-left:22px}ol.refs li{margin:4px 0}
+@media (max-width:640px){table.kinds{display:block;overflow-x:auto}}
+@media print{#s1{break-before:page}.terms{break-inside:avoid}}
+p.small{font-size:.92em;opacity:.8;margin-top:-.4em}
+</style>
+<style>
+/* Diagrams use a friendly rounded font, kept locally so the papers work offline (SIL Open Font License, fonts/OFL.txt). */
+@font-face{font-family:"Nunito";font-style:normal;font-weight:200 1000;font-display:swap;src:url(fonts/nunito-latin-wght-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:"Nunito";font-style:normal;font-weight:200 1000;font-display:swap;src:url(fonts/nunito-latin-ext-wght-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+figure svg text,figure svg tspan{font-family:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wf,.bd,.terms{font-family:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif}
+</style>
+</head>
+<body>
+<header class="top"><a href="index.html" class="on">Part 1: Agent Middleground Protocol</a><a href="https://tonymcodes.github.io/Verification-Is-All-You-Need/paper/">Part 2: Verification Is All You Need</a><span class="right"><a href="paper.pdf">PDF</a><a href="https://github.com/tonymcodes/Agent-Middleground-Protocol">The code</a></span></header>
+<div class="layout">
+<nav class="toc"><b>Contents</b><ol>
+<li><a href="#abstract">Abstract</a></li>
+<li><a href="#s1">1. Introduction</a></li>
+<li><a href="#s2">2. The building blocks</a></li>
+<li class="sub"><a href="#s2-1">2.1 The personal agent</a></li>
+<li class="sub"><a href="#s2-2">2.2 The Agent Middleground</a></li>
+<li class="sub"><a href="#s2-3">2.3 The business agent</a></li>
+<li class="sub"><a href="#s2-4">2.4 Issuers and tokens</a></li>
+<li><a href="#s3">3. One meeting, step by step</a></li>
+<li class="sub"><a href="#s3-1">3.1 Try it yourself</a></li>
+<li><a href="#s4">4. Examples</a></li>
+<li><a href="#s5">5. Security</a></li>
+<li class="sub"><a href="#s5-1">5.1 The person</a></li>
+<li class="sub"><a href="#s5-2">5.2 Certificate tokens</a></li>
+<li class="sub"><a href="#s5-3">5.3 The middle ground</a></li>
+<li class="sub"><a href="#s5-4">5.4 Limits</a></li>
+<li><a href="#s6">6. Related work</a></li>
+<li><a href="#s7">7. Detailed examples</a></li>
+<li class="sub"><a href="#s7-1">7.1 Finance</a></li>
+<li class="sub"><a href="#s7-2">7.2 Used goods between people</a></li>
+<li class="sub"><a href="#s7-3">7.3 Recruitment</a></li>
+<li class="sub"><a href="#s7-4">7.4 City and citizens</a></li>
+<li><a href="#s8">8. Conclusion</a></li>
+<li><a href="#refs">References</a></li>
+</ol></nav>
+<article>
+<h1 id="top">Agent Middleground Protocol (AMP)</h1>
+<p class="subtitle">A meeting place for agents and APIs to view each other's data and take back confirmation tokens while ensuring data privacy</p>
+<p class="byline">Tony Mathew · Draft, November 2026</p>
+
+<section class="abstract" id="abstract">
+<h2>Abstract</h2>
+<p>The internet was designed around people viewing apps or websites on their screens, companies hosting their products/ services on cloud servers and the two sides interacting through APIs. In the AI agent era, when the rules of UI and UX are undergoing major changes, almost everyone will soon have a <b>personal agent</b>, and data exchange or visits to company servers will massively increase in volume. This calls for innovation not just in how companies handle agents using their existing servers, but instead for new ways for agents and APIs to interact and exchange data. The <b>Agent Middleground Protocol (AMP)</b> is a proposed solution in which agents and APIs meet at a neutral <b>Agent Middleground </b>in the cloud, see each other's private data under the supervision of a trusted middleground program, and each side takes back only a <b>verification token</b> of what it saw, never the actual data itself. This not only ensures full data privacy, but opens up new use cases that were not possible so far. The Agent Middleground runs a hash verified code from a public approved Github repo like the repo linked in this paper. This allows any company or individual to start hosting an Agent Middleground in the cloud. The code is such that the middleground mediates each side to view other side's data and take back confirmation tokens that contain only high level summary essential to take decisions, but never the actual data of other side. Also the middleground does not store any data in the server and purely functions as a mediator.&nbsp;</p>
+</section>
+
+<figure id="fig1">
+<svg viewBox="0 0 840 410" role="img" aria-label="The personal agent and the business agent each bring data into the Agent Middleground; each leaves with only a token">
+<defs><marker id="a1-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker><marker id="a1-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker></defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+<rect x="10" y="46" width="228" height="290" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></rect>
+<text x="30" y="84" font-size="18" fill="#2c5a85" font-weight="700">Personal agent</text>
+<text x="30" y="108" font-size="13.5" fill="#5b5b60">the person’s side</text>
+<text x="30" y="140" font-size="15" fill="#1d1d1f">Keeps the person’s data</text>
+<text x="30" y="176" font-size="15" fill="#1d1d1f">Follows their rules</text>
+<text x="30" y="212" font-size="15" fill="#1d1d1f">Asks for a fingerprint</text>
+<text x="30" y="236" font-size="15" fill="#1d1d1f">confirmation before any step</text>
+<rect x="602" y="46" width="228" height="290" rx="14" fill="#edf5f2" stroke="#24685a" stroke-width="1.5"></rect>
+<text x="622" y="84" font-size="18" fill="#24685a" font-weight="700">Business agent</text>
+<text x="622" y="108" font-size="13.5" fill="#5b5b60">the company’s side</text>
+<text x="622" y="140" font-size="15" fill="#1d1d1f">Brings offers and records</text>
+<text x="622" y="176" font-size="15" fill="#1d1d1f">Asks its questions</text>
+<text x="622" y="212" font-size="15" fill="#1d1d1f">Checks the tokens</text>
+<text x="622" y="236" font-size="15" fill="#1d1d1f">it gets back</text>
+<rect x="298" y="14" width="244" height="354" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="420" y="50" font-size="19" fill="#1d1d1f" font-weight="700" text-anchor="middle">Agent Middleground</text>
+<text x="420" y="74" font-size="13.5" fill="#5b5b60" text-anchor="middle">neutral · public code · keeps nothing</text>
+<rect x="318" y="96" width="204" height="120" rx="10" fill="#ffffff" stroke="#b9b3a6" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+<text x="420" y="132" font-size="15" fill="#1d1d1f" text-anchor="middle">Both sides’ data,</text>
+<text x="420" y="157" font-size="15" fill="#1d1d1f" text-anchor="middle">seen only here,</text>
+<text x="420" y="182" font-size="15" fill="#1d1d1f" text-anchor="middle">under strict moderation</text>
+<path d="M420 222L420 250" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a1-a)"></path>
+<text x="420" y="284" font-size="16" fill="#1d1d1f" font-weight="700" text-anchor="middle">The answer</text>
+<text x="420" y="312" font-size="15" fill="#1d1d1f" text-anchor="middle">yes or no · a range</text>
+<text x="420" y="337" font-size="15" fill="#1d1d1f" text-anchor="middle">a count · a match</text>
+<path d="M240 150L294 150" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a1-a)"></path>
+<text x="267" y="138" font-size="13.5" fill="#5b5b60" text-anchor="middle">data in</text>
+<path d="M600 150L546 150" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a1-a)"></path>
+<text x="573" y="138" font-size="13.5" fill="#5b5b60" text-anchor="middle">data in</text>
+<path d="M296 300L242 300" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a1-t)"></path>
+<text x="269" y="324" font-size="13.5" fill="#9a4f12" text-anchor="middle">token</text>
+<path d="M544 300L598 300" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a1-t)"></path>
+<text x="571" y="324" font-size="13.5" fill="#9a4f12" text-anchor="middle">token</text>
+<path d="M120 396h40" stroke="#3a3a3e" stroke-width="2"></path>
+<text x="170" y="401" font-size="14" fill="#5b5b60">data: enters the middle ground</text>
+<path d="M480 396h40" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5"></path>
+<text x="530" y="401" font-size="14" fill="#5b5b60">token: the only thing that leaves</text>
+</g></svg>
+<figcaption><b>Figure 1.</b> The three building blocks of AMP. The personal agent and the business agent each bring their data to the Agent Middleground which works out the answer there, and each side leaves with only a token of what was confirmed, never the other side's actual data.</figcaption>
+</figure>
+
+<div class="terms"><b>Words used in this paper</b>
+<dl>
+<dt>Personal agent</dt><dd>A person's own AI agent, which also stores their personal info and any digital certificates, on their phone or backed up in the cloud.</dd>
+<dt>Business agent</dt><dd>A company's&nbsp; module inside their existing user facing applications that are made ready to meet personal agents.</dd>
+<dt>Agent Middleground</dt><dd>The neutral server where both sides meet.&nbsp;Anyone can host one. It runs public code and retains nothing.</dd>
+<dt>Confirmation token</dt><dd>What the middleground writes for each side after a meeting: what was seen and confirmed, as a yes or no, a range or a count, never the actual data itself, but only high level confirmation details.</dd>
+<dt>Certificate token</dt><dd>A piece of data signed by whoever issued it: like a salary credit signed by the employer, a digital bill signed by the shop. This is typically collected by a user's personal agent. It can be checked the way a browser checks a website's https certificate.</dd>
+<dt>Personal data token</dt><dd>The person's own words or typed in data converted to a suitable format by the personal agent, signed by user with a fingerprint swipe.</dd>
+</dl>All three tokens are together referred to as&nbsp;<i>verification tokens</i>: small signed notes that anyone can check, and that work only for the one who holds them.</div>
+
+<h2 id="s1">1. Introduction</h2>
+<p class="lead">Currently for data exchange between individuals and companies, the two options are at either extreme:</p><p class="lead"><span style="color: rgb(29, 29, 31); font-style: normal;">i, <b>Handover too much personal information</b>. A user has to share too much personal info&nbsp;to companies that ask for personal ids, financial information, etc. The user is powerless when it comes to data privacy since they have to share all asked information without questioning to get a company's service. This is not just data privacy violation, but also further increased risk of data mishandling after the company stores these details in the servers, with risk of future data breach or even selling to third parties.</span></p><p class="lead"><span style="color: rgb(29, 29, 31); font-style: normal;">ii, <b>Very little information is shared</b>. Too much freedom for the user means, they can misrepresent the facts. Also without proper reliable information, the company is not able to offer genuine service. This will result in lot of bad transactions and mistrust in the transactions.&nbsp;</span></p>
+
+<p>The same two choices appear almost everywhere in financial transactions, marketplace or e-commerce, etc.&nbsp;</p>
+
+<p><b>Why now.</b>&nbsp;Soon it will be personal agents that will be interacting on behalf of users for tasks like checking for offers, booking, applying for financial products, comparing product options across different companies, etc.&nbsp;</p><p>Each one of these involves&nbsp; a data exchange. If each one means handing over personal data, then the risk of personal data being shared with too many companies without any moderation will increase. On the other hand if the agent does not share any data or does not show any proof for the data it quotes, then companies will not be able to rely on such interactions initiated by agents for anything that matters and the service will not be rendered.&nbsp;</p><p>As use of personal agents increase, people will no longer be opening one app after the other, but instead their agent will gather the results from many services and show them as one short list of summaries, which the person glances at once or approves with one fingerprint swipe. This means the agents should be able to get the most reliable info from companies for the users and share personal data and transact carefully, while acting on behalf of a user.</p><p>To do reliable data exchange that gives the most accurate info while maintaining data privacy, we need to design slightly innovative ways of exchanging data between users and companies. Enter <b>Agent Middleground Protocol (AMP)</b></p>
+
+<h3 id="s1-idea">The idea: witnesses in a neutral room</h3>
+<p>Think of a hypothetical scenario of how two careful parties can do this in the physical world. Let us take a real-world example of a user applying for a loan and bank interested in offering a loan. The most privacy preserving and trustworthy manner to do this will be if the customer and the bank each send a trusted witness to a neutral room. On the table go the salary slips and the bank's private limits. A referee holds the rules: what each witness may look at, and what each may report back. Each witness returns home and says one thing, such as "Income is above your minimum" or "You qualify". The papers stay with the original owners.</p>
+
+<figure id="fig2">
+<svg viewBox="0 0 840 340" role="img" aria-label="Two witnesses look at the same papers in a neutral room and each takes back a signed note">
+<defs><marker id="a2-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker><marker id="a2-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker></defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+<rect x="10" y="60" width="200" height="236" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></rect>
+<text x="30" y="98" font-size="18" fill="#2c5a85" font-weight="700">The customer</text>
+<text x="30" y="130" font-size="15" fill="#1d1d1f">brings</text>
+<text x="30" y="154" font-size="15" fill="#1d1d1f">salary slips</text>
+<text x="30" y="202" font-size="15" fill="#9a4f12">takes back a note</text>
+<text x="30" y="226" font-size="15" fill="#9a4f12">“you qualify”</text>
+<rect x="630" y="60" width="200" height="236" rx="14" fill="#edf5f2" stroke="#24685a" stroke-width="1.5"></rect>
+<text x="650" y="98" font-size="18" fill="#24685a" font-weight="700">The bank</text>
+<text x="650" y="130" font-size="15" fill="#1d1d1f">brings</text>
+<text x="650" y="154" font-size="15" fill="#1d1d1f">its loan terms and</text>
+<text x="650" y="178" font-size="15" fill="#1d1d1f">private limits</text>
+<text x="650" y="214" font-size="15" fill="#9a4f12">takes back a note</text>
+<text x="650" y="238" font-size="15" fill="#9a4f12">“income above your</text>
+<text x="650" y="262" font-size="15" fill="#9a4f12">minimum: yes”</text>
+<rect x="262" y="14" width="316" height="312" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="420" y="50" font-size="19" fill="#1d1d1f" font-weight="700" text-anchor="middle">A neutral room</text>
+<text x="420" y="74" font-size="13.5" fill="#5b5b60" text-anchor="middle">in AMP: the Agent Middleground</text>
+<circle cx="300" cy="140" r="15" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></circle>
+<text x="300" y="176" font-size="13" fill="#2c5a85" text-anchor="middle">witness</text>
+<circle cx="540" cy="140" r="15" fill="#edf5f2" stroke="#24685a" stroke-width="1.5"></circle>
+<text x="540" y="176" font-size="13" fill="#24685a" text-anchor="middle">witness</text>
+<rect x="334" y="106" width="172" height="70" rx="8" fill="#ffffff" stroke="#b9b3a6" stroke-width="1.5"></rect>
+<text x="420" y="134" font-size="14.5" fill="#1d1d1f" text-anchor="middle">salary slips</text>
+<text x="420" y="158" font-size="14.5" fill="#1d1d1f" text-anchor="middle">the bank’s limits</text>
+<text x="420" y="226" font-size="15" fill="#1d1d1f" font-weight="700" text-anchor="middle">Referee: the public rule sheet</text>
+<text x="420" y="252" font-size="14.5" fill="#1d1d1f" text-anchor="middle">what each may see and report</text>
+<text x="420" y="302" font-size="13.5" fill="#5b5b60" text-anchor="middle">afterwards the papers are shredded</text>
+<path d="M212 120L258 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a2-a)"></path>
+<path d="M628 120L582 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a2-a)"></path>
+<path d="M260 250L214 250" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a2-t)"></path>
+<path d="M580 250L626 250" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a2-t)"></path>
+</g></svg>
+<figcaption><b>Figure 2.</b> The physical picture behind AMP. Both witnesses see the same papers in a neutral room, under rules both sides agreed to. Each takes back only a confirmation note. The papers never leave the room.</figcaption>
+</figure>
+
+<p>AMP builds exactly this, for software. The neutral room is a server called an <b>Agent Middleground</b>. The witnesses are the two sides' agents: the person's <b>personal agent</b> and the bank's <b>business agent</b>. The referee is a short public <b>rule sheet</b>, which lets answers out only in fixed shapes: a yes or no, a range, a count. Each witness's note is a <b>confirmation token</b>, signed by the middle ground and it contains information like whether it is suitable or not, above a certain range, met the required rules, etc instead of actual private data changing hands.&nbsp;</p>
+
+<p><br></p><p>Three things make this system work.&nbsp;</p><p><b>Proof, not claims:</b>&nbsp;Input like salary slip, digital ids, health report, etc are digital verified reports that are provided by authorised parties. They are received digitally and stored and showed around by the personal agent. The original issuer details can be verified in the middleground instead of just trusting the data brought by the personal agent.&nbsp;&nbsp;</p><p><b>Privacy both ways:</b> The privacy part of not handing over unnecessary details benefits both the sides. So even businesses can assure users with authentic data by allowing personal agents to see the data inside the middleground, but the personal agents can only take back confirmation tokens instead of the actual data.</p><p><b>Neutral and visible:</b>&nbsp;The middle ground belongs to neither side, runs a public code from an approved github repo. It is designed to show exactly which code it is running and from which repo. A user can do hash verification to confirm it.&nbsp;</p><p>All of these are accomplished using ordinary cloud servers, https and standard signatures that already exist.</p>
+
+<h3 id="s1-paper"><span style="font-size: 26px;">2. The building blocks</span></h3>
+<h3 id="s2-1">2.1 The personal agent</h3>
+<p class="lead">The person's own base. This personal agent layer mentioned in the AMP paper is concerned with collecting issued certificate tokens on behalf of the user and giving a suitable memory area for user to store any additional personal data that they need to use frequently across different apps. The agent also provides the logic that allows a user to view and approve the various interactions and data taken to Agent Middlegrounds by means of a fingerprint swipe on their smartphone. This can also serve as a base or context layer to any personal agent apps that the user wants to use for doing transactions.&nbsp;</p>
+
+<p><b>Certificate Tokens</b>&nbsp;:&nbsp; These are pre-signed certificates or digital proofs issued to a person from external issuers like bills and warranties, salary credits, bank balances, health reports, tickets, work history, the legal terms &amp; conditions they agreed to, etc. These can be taken to the middleground as already proven data with the details of the issuer and thus gaining instant trust from the other side.</p>
+
+<p><b>Personal tokens.</b> Some of the details stored in the personal agent are data entered by the user into some data fields for safe storage and for usage with their personal agent. Such data which did not originate as a confirmation token from an external issuer, can be used with the user's personal guarantee and signature. The user can&nbsp; signs these as personal tokens in the agent console via an authentication method like fingerprint swipe or PIN or face ID. A personal token put data entered by a user into a digitally signed token format for use with agent middlegrounds.&nbsp;</p><figure id="fig3">
+<svg viewBox="0 0 840 472" role="img" aria-label="Asha types her footwear and address details into a form, one fingerprint swipe signs each group as its own personal token, and at a middle ground the shop learns only the size, colour and area, never the house, street or landmark">
+<defs>
+<marker id="pt-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker>
+<g id="pt-finger" fill="none" stroke-linecap="round">
+<path d="M-11 6a11 11 0 0 1 22 0"></path><path d="M-7 9a7 7 0 0 1 14 0"></path><path d="M-3 11a3 3 0 0 1 6 0"></path><path d="M-15 3a15 15 0 0 1 30 0"></path><path d="M0 7v7"></path>
+</g>
+<g id="pt-lock"><path d="M-2.6 -3.5v-2a2.6 2.6 0 0 1 5.2 0v2" fill="none" stroke="#5b5b60" stroke-width="1.3"></path><rect x="-4.2" y="-3.6" width="8.4" height="7" rx="1.5" fill="#5b5b60"></rect></g>
+<g id="pt-seal"><circle r="8" fill="#24685a"></circle><path d="M-3.6 0.2l2.4 2.4 4.6-5" stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></g>
+</defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+
+<!-- Step titles -->
+<text x="102" y="22" font-size="15" font-weight="700" fill="#1d1d1f" text-anchor="middle">1. Her own details</text>
+<text x="334" y="22" font-size="15" font-weight="700" fill="#1d1d1f" text-anchor="middle">2. One swipe</text>
+<text x="657" y="22" font-size="15" font-weight="700" fill="#1d1d1f" text-anchor="middle">3. At the middle ground</text>
+
+<!-- PHONE 1: a form, one field per row -->
+<rect x="4" y="36" width="196" height="380" rx="26" fill="#ffffff" stroke="#3a3a3e" stroke-width="2"></rect>
+<rect x="77" y="46" width="50" height="6" rx="3" fill="#3a3a3e"></rect>
+<text x="20" y="80" font-size="13" font-weight="700" fill="#2c5a85">Asha’s agent</text>
+<text x="20" y="104" font-size="17" font-weight="700" fill="#1d1d1f">My details</text>
+<rect x="16" y="116" width="172" height="22" rx="4" fill="#eef3f8"></rect>
+<text x="24" y="131" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#2c5a85">FOOTWEAR</text>
+<text x="24" y="154" font-size="12" fill="#5b5b60">Size</text><text x="84" y="154" font-size="12.5" fill="#1d1d1f">9</text>
+<line x1="16" y1="160" x2="188" y2="160" stroke="#d9d6cf"></line>
+<text x="24" y="176" font-size="12" fill="#5b5b60">Colour</text><text x="84" y="176" font-size="12.5" fill="#1d1d1f">Blue</text>
+<line x1="16" y1="182" x2="188" y2="182" stroke="#d9d6cf"></line>
+<rect x="16" y="192" width="172" height="22" rx="4" fill="#eef3f8"></rect>
+<text x="24" y="207" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#2c5a85">ADDRESS</text>
+<text x="24" y="230" font-size="12" fill="#5b5b60">House</text><text x="84" y="230" font-size="12.5" fill="#1d1d1f">3B</text><use href="#pt-lock" x="180" y="226"></use>
+<line x1="16" y1="236" x2="188" y2="236" stroke="#d9d6cf"></line>
+<text x="24" y="252" font-size="12" fill="#5b5b60">Street</text><text x="84" y="252" font-size="12.5" fill="#1d1d1f">100 Feet Road</text><use href="#pt-lock" x="180" y="248"></use>
+<line x1="16" y1="258" x2="188" y2="258" stroke="#d9d6cf"></line>
+<text x="24" y="274" font-size="12" fill="#5b5b60">Landmark</text><text x="84" y="274" font-size="12.5" fill="#1d1d1f">near the metro</text><use href="#pt-lock" x="180" y="270"></use>
+<line x1="16" y1="280" x2="188" y2="280" stroke="#d9d6cf"></line>
+<text x="24" y="296" font-size="12" fill="#5b5b60">Area</text><text x="84" y="296" font-size="12.5" fill="#1d1d1f">Indiranagar</text>
+<line x1="16" y1="302" x2="188" y2="302" stroke="#d9d6cf"></line>
+<text x="24" y="318" font-size="12" fill="#5b5b60">City</text><text x="84" y="318" font-size="12.5" fill="#1d1d1f">Bengaluru</text>
+<line x1="16" y1="324" x2="188" y2="324" stroke="#d9d6cf"></line>
+<text x="24" y="340" font-size="12" fill="#5b5b60">PIN</text><text x="84" y="340" font-size="12.5" fill="#1d1d1f">560038</text>
+<line x1="16" y1="346" x2="188" y2="346" stroke="#d9d6cf"></line>
+<use href="#pt-lock" x="26" y="361"></use>
+<text x="36" y="365" font-size="11" fill="#5b5b60">never given to a business</text>
+<rect x="16" y="374" width="172" height="30" rx="15" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.4"></rect>
+<g transform="translate(42 387) scale(.72)"><use href="#pt-finger" stroke="#2c5a85" stroke-width="1.8"></use></g>
+<text x="112" y="394" font-size="13" font-weight="700" fill="#2c5a85" text-anchor="middle">Swipe to sign</text>
+
+<!-- Arrow: swipe -->
+<text x="218" y="214" font-size="10.5" fill="#9a4f12" text-anchor="middle">swipe</text>
+<line x1="202" y1="226" x2="232" y2="226" stroke="#3a3a3e" stroke-width="1.6" marker-end="url(#pt-a)"></line>
+
+<!-- PHONE 2: each group signed as its own personal token -->
+<rect x="236" y="36" width="196" height="380" rx="26" fill="#ffffff" stroke="#3a3a3e" stroke-width="2"></rect>
+<rect x="309" y="46" width="50" height="6" rx="3" fill="#3a3a3e"></rect>
+<text x="252" y="80" font-size="13" font-weight="700" fill="#2c5a85">Asha’s agent</text>
+<text x="252" y="104" font-size="17" font-weight="700" fill="#1d1d1f">Signed: 2 tokens</text>
+<text x="252" y="124" font-size="11" fill="#24685a">swipe ✓ → key unlocked → signed</text>
+<rect x="248" y="134" width="172" height="92" rx="8" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.4"></rect>
+<text x="258" y="152" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#9a4f12">PERSONAL TOKEN</text>
+<use href="#pt-seal" x="404" y="148"></use>
+<text x="258" y="171" font-size="13" fill="#1d1d1f">Footwear: size 9, blue</text>
+<text x="258" y="188" font-size="11" fill="#5b5b60">id 4F2A-91C0</text>
+<text x="258" y="203" font-size="11" fill="#5b5b60">signer: Asha’s agent key</text>
+<text x="258" y="218" font-size="11" fill="#24685a">22 Nov 10:42 · sig 7f3a…c91e</text>
+<rect x="248" y="234" width="172" height="130" rx="8" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.4"></rect>
+<text x="258" y="252" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#9a4f12">PERSONAL TOKEN</text>
+<use href="#pt-seal" x="404" y="248"></use>
+<text x="258" y="271" font-size="12.5" fill="#1d1d1f">Address: 3B, 100 Feet Rd,</text>
+<text x="258" y="288" font-size="12.5" fill="#1d1d1f">near the metro, Indiranagar,</text>
+<text x="258" y="305" font-size="12.5" fill="#1d1d1f">Bengaluru 560038</text>
+<text x="258" y="324" font-size="11" fill="#5b5b60">id 9D07-3E5B</text>
+<text x="258" y="339" font-size="11" fill="#5b5b60">signer: Asha’s agent key</text>
+<text x="258" y="354" font-size="11" fill="#24685a">22 Nov 10:42 · sig 2b90…e04d</text>
+<text x="334" y="390" font-size="12.5" fill="#5b5b60" text-anchor="middle">Anyone can check a signature;</text>
+<text x="334" y="406" font-size="12.5" fill="#5b5b60" text-anchor="middle">a changed detail breaks it</text>
+
+<!-- Arrow: send -->
+<text x="455" y="214" font-size="10.5" fill="#9a4f12" text-anchor="middle">send</text>
+<line x1="434" y1="226" x2="474" y2="226" stroke="#3a3a3e" stroke-width="1.6" marker-end="url(#pt-a)"></line>
+
+<!-- THE AGENT MIDDLEGROUND: both sides' data seen in the room, then wiped; each side takes back its answer -->
+<rect x="478" y="36" width="358" height="380" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="657" y="64" font-size="17" font-weight="700" fill="#1d1d1f" text-anchor="middle">Agent Middleground</text>
+<text x="657" y="84" font-size="13" fill="#5b5b60" text-anchor="middle">Stride Sports’ shop offer room</text>
+<rect x="492" y="96" width="330" height="180" rx="10" fill="#ffffff" stroke="#b9b3a6" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+<text x="506" y="118" font-size="12" font-weight="700" fill="#9a4f12">From Asha’s tokens</text>
+<rect x="506" y="126" width="152" height="26" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="516" y="144" font-size="12.5" fill="#1d1d1f">size 9, blue</text>
+<rect x="506" y="158" width="152" height="80" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="516" y="176" font-size="12" fill="#1d1d1f">3B, 100 Feet Road,</text>
+<text x="516" y="193" font-size="12" fill="#1d1d1f">near the metro,</text>
+<text x="516" y="210" font-size="12" fill="#1d1d1f">Indiranagar,</text>
+<text x="516" y="227" font-size="12" fill="#1d1d1f">Bengaluru 560038</text>
+<text x="670" y="118" font-size="12" font-weight="700" fill="#24685a">From the shop</text>
+<rect x="670" y="126" width="138" height="26" rx="6" fill="#edf5f2" stroke="#24685a" stroke-width="1.2"></rect>
+<text x="680" y="144" font-size="12.5" fill="#1d1d1f">stock list</text>
+<rect x="670" y="158" width="138" height="26" rx="6" fill="#edf5f2" stroke="#24685a" stroke-width="1.2"></rect>
+<text x="680" y="176" font-size="12.5" fill="#1d1d1f">offer: 15% off</text>
+<rect x="670" y="190" width="138" height="26" rx="6" fill="#edf5f2" stroke="#24685a" stroke-width="1.2"></rect>
+<text x="680" y="208" font-size="12.5" fill="#1d1d1f">delivery areas</text>
+<text x="657" y="264" font-size="12" fill="#5b5b60" text-anchor="middle">seen only here, under the rule sheet, then wiped</text>
+<rect x="492" y="288" width="160" height="116" rx="8" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.4"></rect>
+<text x="502" y="308" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#2c5a85">ASHA TAKES BACK</text>
+<text x="502" y="330" font-size="13" fill="#1d1d1f">In stock · 15% off</text>
+<text x="502" y="350" font-size="13" fill="#1d1d1f">Delivers to your area</text>
+<rect x="662" y="288" width="160" height="116" rx="8" fill="#edf5f2" stroke="#24685a" stroke-width="1.4"></rect>
+<text x="672" y="308" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#24685a">THE SHOP TAKES BACK</text>
+<text x="672" y="328" font-size="12.5" fill="#1d1d1f">size 9, blue</text>
+<text x="672" y="346" font-size="12.5" fill="#1d1d1f">a buyer in Indiranagar,</text>
+<text x="672" y="363" font-size="12.5" fill="#1d1d1f">Bengaluru 560038</text>
+<text x="672" y="382" font-size="11.5" font-weight="700" fill="#9a4f12">not the house, street</text>
+<text x="672" y="397" font-size="11.5" font-weight="700" fill="#9a4f12">or landmark</text>
+
+<!-- Captions -->
+<text x="102" y="442" font-size="13.5" fill="#5b5b60" text-anchor="middle">Asha types her details</text>
+<text x="102" y="461" font-size="13.5" fill="#5b5b60" text-anchor="middle">into a form, field by field</text>
+<text x="334" y="442" font-size="13.5" fill="#5b5b60" text-anchor="middle">One swipe signs each group</text>
+<text x="334" y="461" font-size="13.5" fill="#5b5b60" text-anchor="middle">as its own personal token</text>
+<text x="657" y="442" font-size="13.5" fill="#5b5b60" text-anchor="middle">Both sides’ data meet in the room; the shop</text>
+<text x="657" y="461" font-size="13.5" fill="#5b5b60" text-anchor="middle">learns the area, never the house or street</text>
+</g>
+</svg>
+<figcaption><b>Figure 3. Personal data tokens.</b> Asha types her own details into a form in her agent, one field per row: her footwear size and colour, and her address. One fingerprint swipe unlocks her agent’s key, which signs each group as a separate personal token, with its own id, the time and a signature that breaks if any detail changes. At a middle ground, both tokens are seen in the shop’s room next to its stock, offers and delivery areas, then wiped. Asha takes back that the shoes are in stock, the offer, and that the shop delivers to her area. The shop takes back the size, the colour and the area, city and PIN code, which many people share, never the house, street or landmark. A personal token is a user's confirmation of what was said and when</figcaption>
+</figure>
+
+<p><b>The fingerprint swipe.</b> The phone unlocks the agent's signing key only when the fingerprint matches, using the secure chip that phones already use for payments. Phone and laptop browsers can ask for the fingerprint, the face or the device's PIN through a <i>passkey</i>, on any page served over https. The agent provider names the device's passkey in the person's real person pass, and the middle ground accepts a swipe only from that passkey, so the swipe is tied to that one person. One swipe approves exactly what is on the screen, and nothing after it. Small items can be approved together as a short list, such as a shop's loyalty check and a job match. Important items always get a screen and a swipe of their own.</p>
+
+<h3 id="s2-2">2.2 The Agent Middleground</h3>
+<p class="lead">A new kind of place on the internet, made for agents rather than people. It runs code from the approved public AMP repo, shows proof of the code it runs, lets in only verified visitors, works out each answer using a public rule sheet, lets the two sides take back only approved details, and stores nothing for itself.</p>
+
+<p>An Agent Middleground is a small server. Its code is public on GitHub, and it runs on any ordinary cloud server. Its public page lists the files it runs, along with a <i>code fingerprint</i> of them: a short code worked out from every file, which changes if any file changes. Only two kinds of visitors are let in: organisations that have joined the middle ground, and personal agents that carry a real person pass from their personal agent.</p>
+
+<p><b>Rule sheets.</b> Each kind of meeting has its own short rule sheet, published along with the code. It says who the two sides are, what each side brings, what may be looked at, and which answers each side may take back. A credit offer has one rule sheet, a loyalty discount has another, and a company can write a new one for its own kind of offer. Every confirmation token names the fingerprint of the rule sheet that produced it, so anyone can read exactly which rules were applied.</p>
+
+<figure id="fig4">
+<svg viewBox="0 0 840 330" role="img" aria-label="The middle ground at work: data and certificate tokens from both sides are held in memory, the rule sheet checks, compares, places in ranges and counts, and only answers in fixed shapes leave as signed confirmation tokens">
+<defs>
+<marker id="f4-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker>
+<marker id="f4-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker>
+</defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+
+<!-- In -->
+<text x="70" y="128" font-size="13.5" font-weight="700" fill="#1d1d1f" text-anchor="middle">In, from</text>
+<text x="70" y="146" font-size="13.5" font-weight="700" fill="#1d1d1f" text-anchor="middle">both sides</text>
+<rect x="8" y="160" width="124" height="26" rx="6" fill="#ffffff" stroke="#b9b3a6" stroke-width="1.2"></rect>
+<text x="70" y="178" font-size="12.5" fill="#1d1d1f" text-anchor="middle">values</text>
+<rect x="8" y="192" width="124" height="26" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="70" y="210" font-size="12.5" fill="#1d1d1f" text-anchor="middle">certificate tokens</text>
+<path d="M136 189L166 189" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#f4-a)"></path>
+
+<!-- The middle ground -->
+<rect x="170" y="8" width="390" height="314" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="365" y="38" font-size="18" font-weight="700" fill="#1d1d1f" text-anchor="middle">Agent Middleground</text>
+<text x="365" y="58" font-size="12.5" fill="#5b5b60" text-anchor="middle">public code · code fingerprint 3a9f…c210</text>
+<rect x="186" y="70" width="358" height="46" rx="10" fill="#ffffff" stroke="#b9b3a6" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+<text x="365" y="90" font-size="13" fill="#1d1d1f" text-anchor="middle">The room: both sides’ values and tokens,</text>
+<text x="365" y="107" font-size="13" fill="#1d1d1f" text-anchor="middle">held in memory only</text>
+<rect x="186" y="126" width="358" height="158" rx="10" fill="#ffffff" stroke="#1d1d1f" stroke-width="1.4"></rect>
+<text x="200" y="148" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#1d1d1f">THE RULE SHEET</text>
+<text x="530" y="148" font-size="11" fill="#5b5b60" text-anchor="end">public, one per kind of meeting</text>
+<circle cx="208" cy="169" r="9" fill="#f6f4ee" stroke="#1d1d1f"></circle><text x="208" y="173" font-size="11" font-weight="700" fill="#1d1d1f" text-anchor="middle">1</text>
+<text x="226" y="173" font-size="13" fill="#1d1d1f">Check each token: issuer, signature, date, holder</text>
+<circle cx="208" cy="199" r="9" fill="#f6f4ee" stroke="#1d1d1f"></circle><text x="208" y="203" font-size="11" font-weight="700" fill="#1d1d1f" text-anchor="middle">2</text>
+<text x="226" y="203" font-size="13" fill="#1d1d1f">Compare one side’s value with the other’s limit</text>
+<circle cx="208" cy="229" r="9" fill="#f6f4ee" stroke="#1d1d1f"></circle><text x="208" y="233" font-size="11" font-weight="700" fill="#1d1d1f" text-anchor="middle">3</text>
+<text x="226" y="233" font-size="13" fill="#1d1d1f">Place a value in one of a few fixed ranges</text>
+<circle cx="208" cy="259" r="9" fill="#f6f4ee" stroke="#1d1d1f"></circle><text x="208" y="263" font-size="11" font-weight="700" fill="#1d1d1f" text-anchor="middle">4</text>
+<text x="226" y="263" font-size="13" fill="#1d1d1f">Count, leaving out groups too small to hide a person</text>
+<text x="365" y="308" font-size="12.5" fill="#5b5b60" text-anchor="middle">Every value is wiped once the answers are signed</text>
+
+<!-- Out -->
+<path d="M562 189L592 189" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#f4-t)"></path>
+<text x="716" y="22" font-size="13.5" font-weight="700" fill="#1d1d1f" text-anchor="middle">Out: confirmation tokens,</text>
+<text x="716" y="40" font-size="13.5" font-weight="700" fill="#1d1d1f" text-anchor="middle">signed by the middle ground</text>
+<rect x="598" y="54" width="236" height="28" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="610" y="73" font-size="12.5" fill="#1d1d1f">Certificate valid: <tspan font-weight="700">yes</tspan></text>
+<rect x="598" y="88" width="236" height="28" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="610" y="107" font-size="12.5" fill="#1d1d1f">Above the minimum: <tspan font-weight="700">yes</tspan></text>
+<rect x="598" y="122" width="236" height="28" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="610" y="141" font-size="12.5" fill="#1d1d1f">In the range: <tspan font-weight="700">₹50,000 – 1,00,000</tspan></text>
+<rect x="598" y="156" width="236" height="28" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="610" y="175" font-size="12.5" fill="#1d1d1f">Count: <tspan font-weight="700">312 from the north</tspan></text>
+<rect x="598" y="190" width="236" height="28" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="610" y="209" font-size="12.5" fill="#1d1d1f">The two prices meet: <tspan font-weight="700">yes</tspan></text>
+<rect x="598" y="224" width="236" height="28" rx="6" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="610" y="243" font-size="12.5" fill="#1d1d1f">No valid token: <tspan font-weight="700">not proven</tspan></text>
+<rect x="598" y="266" width="236" height="28" rx="6" fill="#ffffff" stroke="#8a8a8f" stroke-width="1.2" stroke-dasharray="4 3"></rect>
+<text x="610" y="285" font-size="12.5" fill="#8a8a8f" text-decoration="line-through">Salary: ₹63,500</text>
+<text x="822" y="285" font-size="11.5" font-weight="700" fill="#5b5b60" text-anchor="end">never leaves</text>
+<text x="716" y="314" font-size="11.5" fill="#5b5b60" text-anchor="middle">a raw value in an answer stops the room</text>
+</g>
+</svg>
+<figcaption><b>Figure 4.</b> The middle ground at work. Values and certificate tokens from both sides are held in the room, in memory only. The rule sheet checks, compares, places values in ranges and counts, and only answers in these fixed shapes leave, as confirmation tokens signed by the middle ground. A raw value, such as a salary figure, never leaves the room and the code does not allow such copying of data from one side to the other.&nbsp;</figcaption>
+</figure>
+
+<p><b>Answers in fixed shapes.</b> The work a rule sheet does is deliberately simple: it checks tokens, compares a value with a limit, places a value in a range, or counts (Figure 4). Every answer has to take one of a few fixed shapes: a yes or no, a range, a count, or a choice from a fixed list. A value that comes without a valid certificate token is still looked at, but the answer based on it is marked "not proven". The middleground code only allows confirmation tokens to be returned to either side and if any rule sheet tries to copy data, it is stopped by the AMP code. So even a badly written rule sheet cannot pass data from one side to the other.</p>
+
+<p><b>A waiting room.</b> The two sides never talk to each other directly, and therefore they do not need to be online at the same time. The first side to arrive leaves its data in a room, held in memory only, and goes away. When the other side arrives, the middle ground does its work at once, and each side collects its confirmation token the next time it checks in. The same two sides can meet only a few times a day under one rule sheet, so that neither side can work out the other's private values by asking many slightly different questions. Most rooms are pair rooms, where one side meets one other side: a person and a company, or two people such as a buyer and a seller. In a pool room, one company's agent or API meets many personal agents and gets back only overall counts.</p>
+
+<p><b>Who hosts.</b> Anyone can host a middle ground: any company, government institution, individual. Companies that people already trust with their data can host one under their own name and start right away. Since it is a small program on an ordinary server, cloud providers can also offer it as a new kind of ready-made cloud feature, the way they offer various modules today. The cloud provider has to design a cloud module such that it shows what code is running inside, the file system and a hash confirmation of the code. This means the company or person hosting the AMP on the cloud provider cannot tamper the hash and this becomes a fully reliable offering. No blockchain or special hardware is needed. The two sides only have to agree on which middle ground to use, and an agent checks a middle ground by program before using it, by comparing the files it runs with the public code (section 5.3).</p>
+
+<p><b>How a host earns.</b> A host can charge a tiny fee for each request, paid through the personal agent's subscription so that the host never learns who asked. It can take a small share when a deal succeeds, such as a shopping purchase, a financial transaction or successful hiring of a candidate, etc. It can also carry ads made for the agent era: an advertiser leaves one short message, and the middle ground passes it on, marked as sponsored, only with the requests it fits. This offers two-way benefits: 1, The user sees highly relevant ads without any personal tracking used by current ad servers 2, Companies can get more successful targeting since the middleground sends their ads to the most targeted and real users, but without any privacy concern for the users. A cloud provider may also run a middle ground for free as a part of attracting users and companies to its overall cloud suite.&nbsp;</p>
+
+<h3 id="s2-3">2.3 The business agent</h3>
+<p class="lead">The company's side made ready for the agent era. It is just a new module or function to be added to the systems the company already runs, not a new system.</p>
+
+<p>Today a company serves people through its website and app, which are built for people to look at, and through APIs that other companies call. Personal agents need something different, especially multiple rounds of interactions to complete a successful transaction. The business agent lets the company meet personal agents at middlegrounds, using the systems and data it already keeps. It has four jobs, shown in Figure 5 for a maker of home appliances.</p>
+
+<figure id="fig5">
+<svg viewBox="0 0 840 236" role="img" aria-label="A business agent for an appliance maker: it draws on the systems the company already runs, and publishes offers, meets personal agents, rewards proven buyers and issues certificate tokens">
+<defs>
+<marker id="f5-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker>
+<g id="f5-lock"><path d="M-2.6 -3.5v-2a2.6 2.6 0 0 1 5.2 0v2" fill="none" stroke="#5b5b60" stroke-width="1.3"></path><rect x="-4.2" y="-3.6" width="8.4" height="7" rx="1.5" fill="#5b5b60"></rect></g>
+</defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+
+<!-- Existing systems -->
+<rect x="4" y="8" width="206" height="220" rx="12" fill="#ffffff" stroke="#3a3a3e" stroke-width="1.5"></rect>
+<text x="20" y="34" font-size="15" font-weight="700" fill="#1d1d1f">Kaveri Appliances</text>
+<text x="20" y="52" font-size="12" fill="#5b5b60">systems it already runs</text>
+<rect x="16" y="66" width="182" height="34" rx="6" fill="#f6f4ee"></rect>
+<text x="26" y="88" font-size="12.5" fill="#1d1d1f">Catalogue and prices</text>
+<rect x="16" y="106" width="182" height="34" rx="6" fill="#f6f4ee"></rect>
+<text x="26" y="128" font-size="12.5" fill="#1d1d1f">Sales and warranty records</text>
+<rect x="16" y="146" width="182" height="50" rx="6" fill="#f6f4ee"></rect>
+<use href="#f5-lock" x="31" y="164"></use>
+<text x="42" y="168" font-size="12.5" fill="#1d1d1f">Private: discount</text>
+<text x="26" y="186" font-size="12.5" fill="#1d1d1f">budget, stock, margins</text>
+<path d="M212 118L246 118" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#f5-a)"></path>
+
+<!-- The business agent -->
+<rect x="250" y="58" width="164" height="120" rx="12" fill="#edf5f2" stroke="#24685a" stroke-width="1.5"></rect>
+<text x="332" y="100" font-size="17" font-weight="700" fill="#24685a" text-anchor="middle">Business agent</text>
+<text x="332" y="124" font-size="12.5" fill="#5b5b60" text-anchor="middle">a new part of the</text>
+<text x="332" y="141" font-size="12.5" fill="#5b5b60" text-anchor="middle">same systems</text>
+<path d="M416 104L446 31M416 112L446 85M416 124L446 139M416 132L446 193" fill="none" stroke="#3a3a3e" stroke-width="1.6"></path>
+
+<!-- Its four jobs -->
+<rect x="450" y="8" width="386" height="46" rx="8" fill="#ffffff" stroke="#24685a" stroke-width="1.2"></rect>
+<text x="464" y="27" font-size="13" font-weight="700" fill="#24685a">Publishes</text>
+<text x="464" y="45" font-size="12.5" fill="#1d1d1f">its catalogue and offers at middle grounds</text>
+<rect x="450" y="62" width="386" height="46" rx="8" fill="#ffffff" stroke="#24685a" stroke-width="1.2"></rect>
+<text x="464" y="81" font-size="13" font-weight="700" fill="#24685a">Meets personal agents</text>
+<text x="464" y="99" font-size="12.5" fill="#1d1d1f">brings its private limits, takes back confirmation tokens</text>
+<rect x="450" y="116" width="386" height="46" rx="8" fill="#ffffff" stroke="#24685a" stroke-width="1.2"></rect>
+<text x="464" y="135" font-size="13" font-weight="700" fill="#24685a">Transacts with proven buyers</text>
+<text x="464" y="153" font-size="12.5" fill="#1d1d1f">a discount or custom pricing for genuine customer</text>
+<rect x="450" y="170" width="386" height="46" rx="8" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<text x="464" y="189" font-size="13" font-weight="700" fill="#9a4f12">Issues certificate tokens</text>
+<text x="464" y="207" font-size="12.5" fill="#1d1d1f">signed bills and warranties, sent to each buyer’s agent</text>
+</g>
+</svg>
+<figcaption><b>Figure 5.</b> The business agent of an appliance maker, Kaveri Appliances. It draws on the systems the company already runs, and does four jobs at middle grounds: it publishes the catalogue, meets personal agents with its private limits, completes transaction with proven buyers, and signs bills and warranties as certificate tokens.</figcaption>
+</figure>
+
+<p><b>Publish offers.</b> The company publishes its products, prices and offers once, at the middle grounds it uses. Agents read them there, instead of scraping websites that were made for people.</p>
+<p><b>Meet personal agents.</b> In a room, the business agent brings the company's private data, such as a bank's lending limits, an employer's pay budget or a maker's discount rules. It gets back confirmation tokens, instead of documents that it would then have to store and protect. From pool rooms it can learn real but anonymous counts, such as how many people in each city want a product.</p>
+<p><b>Complete transaction the right people.</b> When the rule sheet confirms that a person qualifies, for example as a genuine buyer, the company can give the discount or a custom pricing to that person directly.&nbsp;</p>
+<p><b>Issue certificate tokens.</b> The company already hands out bills, warranties, payslips and offer letters. The business agent signs these from the company's own systems and sends them to the person's agent as certificate tokens, which the person can later bring to other meetings as proofs.</p>
+
+<h3 id="s2-4">2.4 Issuers and tokens</h3>
+<p class="lead">What a person types in is their own word. Issuers turn it into proof: an employer signs salary credits, a shop signs bills, a maker signs warranties.</p>
+
+<p>The internet has already solved a similar problem. When you open a bank's website, your browser checks a certificate saying that the site belongs to the bank, signed by a certificate company that the browser trusts. Certificate tokens work in the same way (Figure 6):</p>
+<ol>
+<li>The issuer makes a key pair once, and keeps the secret key in its own system.</li>
+<li>A registry checks the issuer once, and signs a <i>key note</i>: this issuer, at this web address, has this key, until this date. A registry can be a business registry, a banking regulator or a university body.</li>
+<li>Every certificate token carries the key note, and is issued to one agent's key.</li>
+<li>The middle ground checks the whole chain: the registry, the key note, the issuer's signature, the agent holding the token, the date, and that the value brought matches the token exactly. Nobody has to be called, because everything needed is inside the token.</li>
+</ol>
+
+<figure id="fig6">
+<svg viewBox="0 0 840 348" role="img" aria-label="The chain from registry to key note to certificate token to agent, and the two levels of trust">
+<defs><marker id="a6-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker><marker id="a6-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker></defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+<rect x="2" y="10" width="192" height="138" rx="14" fill="#f3eff8" stroke="#5f4b8b" stroke-width="1.5"></rect>
+<text x="22" y="46.5" font-size="16.5" fill="#5f4b8b" font-weight="700">Registry</text>
+<text x="22" y="78.5" font-size="14" fill="#1d1d1f">a business registry</text>
+<text x="22" y="101.5" font-size="14" fill="#1d1d1f">or a regulator</text>
+<text x="22" y="124.5" font-size="14" fill="#1d1d1f">checks the issuer</text>
+<path d="M196 79L213 79" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a6-a)"></path>
+<rect x="215" y="10" width="192" height="138" rx="14" fill="#f3eff8" stroke="#5f4b8b" stroke-width="1.5"></rect>
+<text x="235" y="46.5" font-size="16.5" fill="#5f4b8b" font-weight="700">Key note</text>
+<text x="235" y="78.5" font-size="14" fill="#1d1d1f">names the issuer</text>
+<text x="235" y="101.5" font-size="14" fill="#1d1d1f">and its key,</text>
+<text x="235" y="124.5" font-size="14" fill="#1d1d1f">signed by registry</text>
+<path d="M409 79L426 79" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a6-a)"></path>
+<rect x="428" y="10" width="192" height="138" rx="14" fill="#fbf1e6" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="448" y="46.5" font-size="16.5" fill="#9a4f12" font-weight="700">Certificate token</text>
+<text x="448" y="78.5" font-size="14" fill="#1d1d1f">salary credits,</text>
+<text x="448" y="101.5" font-size="14" fill="#1d1d1f">signed by the employer,</text>
+<text x="448" y="124.5" font-size="14" fill="#1d1d1f">for one person’s agent</text>
+<path d="M622 79L639 79" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a6-a)"></path>
+<rect x="641" y="10" width="192" height="138" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></rect>
+<text x="661" y="46.5" font-size="16.5" fill="#2c5a85" font-weight="700">The person’s agent</text>
+<text x="661" y="78.5" font-size="14" fill="#1d1d1f">keeps it in its</text>
+<text x="661" y="101.5" font-size="14" fill="#1d1d1f">vault; nobody else</text>
+<text x="661" y="124.5" font-size="14" fill="#1d1d1f">can use it</text>
+<text x="205" y="168" font-size="13" fill="#5b5b60" text-anchor="middle">signs</text>
+<text x="418" y="168" font-size="13" fill="#5b5b60" text-anchor="middle">goes inside</text>
+<text x="631" y="168" font-size="13" fill="#5b5b60" text-anchor="middle">issued to</text>
+<rect x="2" y="192" width="408" height="148" rx="14" fill="#ffffff" stroke="#5f4b8b" stroke-width="1.5"></rect>
+<text x="22" y="222" font-size="16.5" fill="#5f4b8b" font-weight="700">Level 1: listed issuers</text>
+<text x="22" y="252" font-size="14.5" fill="#1d1d1f">confirmed by a registry the</text>
+<text x="22" y="276" font-size="14.5" fill="#1d1d1f">middle ground trusts</text>
+<text x="22" y="312" font-size="14.5" fill="#5b5b60">needed for important matters, like loans</text>
+<rect x="430" y="192" width="408" height="148" rx="14" fill="#ffffff" stroke="#b9b3a6" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+<text x="450" y="222" font-size="16.5" fill="#5b5b60" font-weight="700">Level 2: unknown issuers</text>
+<text x="450" y="252" font-size="14.5" fill="#1d1d1f">key published on the issuer’s</text>
+<text x="450" y="276" font-size="14.5" fill="#1d1d1f">own https website</text>
+<text x="450" y="312" font-size="14.5" fill="#5b5b60">enough for small matters, like a discount</text>
+</g></svg>
+<figcaption><b>Figure 6.</b> The chain behind a certificate token, as in https: the registry signs a key note for the issuer, the key note goes inside every token the issuer signs, and each token is issued to one agent.&nbsp;</figcaption>
+</figure>
+
+<p>Important matters like financial transactions can choose to accept only listed issuers, confirmed by a registry that the middle ground trusts. Small matters, such as a small shop's discount, can accept an unknown issuer whose key is published on its own https website. Anyone can check such a key by hand, by opening the issuer's website and comparing it with the key id in the agent. Lists of trusted issuers will grow over time, as the lists of certificate companies did for https. Similar ideas already work at national scale in India: documents in DigiLocker carry the issuing department's signature and count as originals, and every GST e-invoice carries a signed QR code.</p>
+
+<p><b>Checking and carrying tokens.</b> Anyone can check a token with its signer's public key, and if even one character has been changed, the check fails. For a confirmation token, the code fingerprint inside it should also match the public code. Every token names the agent that holds it, so a copy in anyone else's hands is of no use. A confirmation token can itself be brought to a later meeting as proof: "income above ₹50,000: yes" can go to an insurer next week, without the salary credits. The fields of each kind of token are listed in the sample code.</p>
+
+<h2 id="s3">3. One meeting, step by step</h2>
+<p class="lead">One meeting from start to end: a person, Asha, and a bank, Northbank, meet over a personal loan offer. This is the first sample in the starter code listed later in this section and every value below is the sample's own.</p>
+
+<p>Today, to find out whether Northbank will lend to her, Asha would upload three months of bank statements and salary slips, and she would do the same again for every other lender she tries. With AMP, her personal agent and Northbank's business agent meet at a middle ground under the public "credit offer" rule sheet, and neither side's data goes to the other (Figure 7). This allows people and companies to genuinely interact for checking current fit for potential future transactions without revealing too much data and yet building full trust. The importance of this example is about how initial exchanges between two parties can be done without revealing too much data, but ensuring both sides can trust each other based on some authentic data. This way a user can interact with multiple providers quickly and reliably via their personal agents.&nbsp; The final actual transaction with a chosen provider may still happen in the traditional face to face manner based on legal requirements.&nbsp;</p>
+
+<figure id="fig7">
+<svg viewBox="0 0 840 570" role="img" aria-label="One meeting: Asha's agent brings three signed values, Northbank's business agent brings its offer, private limits and licence, the middle ground checks them under the credit offer rule sheet, and each side takes back only its own confirmation token">
+<defs>
+<marker id="f7-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker>
+<marker id="f7-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker>
+<g id="f7-finger" fill="none" stroke-linecap="round"><path d="M-11 6a11 11 0 0 1 22 0"></path><path d="M-7 9a7 7 0 0 1 14 0"></path><path d="M-3 11a3 3 0 0 1 6 0"></path><path d="M-15 3a15 15 0 0 1 30 0"></path><path d="M0 7v7"></path></g>
+<g id="f7-lock"><path d="M-2.6 -3.5v-2a2.6 2.6 0 0 1 5.2 0v2" fill="none" stroke="#5b5b60" stroke-width="1.3"></path><rect x="-4.2" y="-3.6" width="8.4" height="7" rx="1.5" fill="#5b5b60"></rect></g>
+<g id="f7-seal"><circle r="8" fill="#24685a"></circle><path d="M-3.6 0.2l2.4 2.4 4.6-5" stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></g>
+<g id="f7-tick"><circle r="7" fill="#edf5f2" stroke="#24685a"></circle><path d="M-3 0.2l2 2 4-4.2" stroke="#24685a" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></g>
+</defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+
+<!-- Step titles -->
+<text x="102" y="22" font-size="15" font-weight="700" fill="#1d1d1f" text-anchor="middle">1. Asha approves</text>
+<text x="420" y="22" font-size="15" font-weight="700" fill="#1d1d1f" text-anchor="middle">2. The middle ground checks</text>
+<text x="738" y="22" font-size="15" font-weight="700" fill="#1d1d1f" text-anchor="middle">Northbank’s room</text>
+
+<!-- PHONE: what Asha's agent brings -->
+<rect x="4" y="36" width="196" height="340" rx="26" fill="#ffffff" stroke="#3a3a3e" stroke-width="2"></rect>
+<rect x="77" y="46" width="50" height="6" rx="3" fill="#3a3a3e"></rect>
+<text x="20" y="78" font-size="13" font-weight="700" fill="#2c5a85">Asha’s agent</text>
+<text x="20" y="99" font-size="15" font-weight="700" fill="#1d1d1f">Northbank: credit offer</text>
+<text x="20" y="118" font-size="11" fill="#5b5b60">To bring, each a certificate token:</text>
+<rect x="16" y="126" width="172" height="54" rx="7" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<use href="#f7-seal" x="176" y="169"></use>
+<text x="26" y="142" font-size="11" fill="#5b5b60">Salary, last 3 months</text>
+<text x="26" y="158" font-size="12.5" fill="#1d1d1f">₹62,000 · 64,000 · 63,500</text>
+<text x="26" y="173" font-size="10.5" fill="#24685a">signed: her employer</text>
+<rect x="16" y="186" width="172" height="54" rx="7" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<use href="#f7-seal" x="176" y="229"></use>
+<text x="26" y="202" font-size="11" fill="#5b5b60">Loan instalments</text>
+<text x="26" y="218" font-size="12.5" fill="#1d1d1f">₹9,000 a month</text>
+<text x="26" y="233" font-size="10.5" fill="#24685a">signed: a credit bureau</text>
+<rect x="16" y="246" width="172" height="54" rx="7" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<use href="#f7-seal" x="176" y="289"></use>
+<text x="26" y="262" font-size="11" fill="#5b5b60">Missed payments, last year</text>
+<text x="26" y="278" font-size="12.5" fill="#1d1d1f">none</text>
+<text x="26" y="293" font-size="10.5" fill="#24685a">signed: a credit bureau</text>
+<text x="102" y="320" font-size="11.5" fill="#1d1d1f" text-anchor="middle">Send these to Northbank’s room?</text>
+<rect x="16" y="330" width="172" height="30" rx="15" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.4"></rect>
+<g transform="translate(42 343) scale(.72)"><use href="#f7-finger" stroke="#2c5a85" stroke-width="1.8"></use></g>
+<text x="112" y="350" font-size="13" font-weight="700" fill="#2c5a85" text-anchor="middle">Swipe to send</text>
+
+<path d="M202 206L232 206" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#f7-a)"></path>
+
+<!-- THE MIDDLE GROUND -->
+<rect x="236" y="36" width="368" height="340" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="420" y="64" font-size="17" font-weight="700" fill="#1d1d1f" text-anchor="middle">Agent Middleground</text>
+<text x="420" y="84" font-size="12.5" fill="#5b5b60" text-anchor="middle">rule sheet: credit offer · data in memory only</text>
+<rect x="250" y="96" width="340" height="232" rx="10" fill="#ffffff" stroke="#b9b3a6" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+<text x="264" y="118" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#1d1d1f">WHAT THE RULE SHEET LOOKS AT</text>
+<text x="576" y="118" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#5b5b60" text-anchor="end">SEEN HERE</text>
+<use href="#f7-tick" x="272" y="143"></use><text x="286" y="147" font-size="12.5" fill="#1d1d1f">Every token’s issuer, date and holder</text><text x="576" y="147" font-size="12" fill="#5b5b60" text-anchor="end">valid</text>
+<line x1="262" y1="158" x2="578" y2="158" stroke="#e6e2da"></line>
+<use href="#f7-tick" x="272" y="175"></use><text x="286" y="179" font-size="12.5" fill="#1d1d1f">Each month above ₹50,000?</text><text x="576" y="179" font-size="12" fill="#5b5b60" text-anchor="end">3 of 3</text>
+<line x1="262" y1="190" x2="578" y2="190" stroke="#e6e2da"></line>
+<use href="#f7-tick" x="272" y="207"></use><text x="286" y="211" font-size="12.5" fill="#1d1d1f">Average income: which range?</text><text x="576" y="211" font-size="12" fill="#5b5b60" text-anchor="end">₹63,167</text>
+<line x1="262" y1="222" x2="578" y2="222" stroke="#e6e2da"></line>
+<use href="#f7-tick" x="272" y="239"></use><text x="286" y="243" font-size="12.5" fill="#1d1d1f">Instalments within 40% of income?</text><text x="576" y="243" font-size="12" fill="#5b5b60" text-anchor="end">9,000 ≤ 25,267</text>
+<line x1="262" y1="254" x2="578" y2="254" stroke="#e6e2da"></line>
+<use href="#f7-tick" x="272" y="271"></use><text x="286" y="275" font-size="12.5" fill="#1d1d1f">Any missed payments?</text><text x="576" y="275" font-size="12" fill="#5b5b60" text-anchor="end">none</text>
+<line x1="262" y1="286" x2="578" y2="286" stroke="#e6e2da"></line>
+<use href="#f7-tick" x="272" y="303"></use><text x="286" y="307" font-size="12.5" fill="#1d1d1f">Lender’s licence signed and valid?</text><text x="576" y="307" font-size="12" fill="#5b5b60" text-anchor="end">yes</text>
+<text x="420" y="354" font-size="12.5" fill="#5b5b60" text-anchor="middle">Each side gets a signed token, then every value is wiped</text>
+
+<path d="M638 206L608 206" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#f7-a)"></path>
+
+<!-- NORTHBANK'S BUSINESS AGENT -->
+<rect x="640" y="36" width="196" height="340" rx="14" fill="#edf5f2" stroke="#24685a" stroke-width="1.5"></rect>
+<text x="654" y="62" font-size="13" font-weight="700" fill="#24685a">Northbank</text>
+<text x="654" y="82" font-size="15" font-weight="700" fill="#1d1d1f">Business agent</text>
+<rect x="650" y="94" width="176" height="20" rx="4" fill="#ffffff"></rect>
+<text x="658" y="108" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#24685a">PUBLIC OFFER</text>
+<text x="658" y="132" font-size="12.5" fill="#1d1d1f">Personal loan up to</text>
+<text x="658" y="149" font-size="12.5" fill="#1d1d1f">₹5,00,000 at 11.5% a year,</text>
+<text x="658" y="166" font-size="12.5" fill="#1d1d1f">terms fixed for 30 days</text>
+<rect x="650" y="180" width="176" height="20" rx="4" fill="#ffffff"></rect>
+<text x="658" y="194" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#24685a">PRIVATE LIMITS</text>
+<use href="#f7-lock" x="814" y="189"></use>
+<text x="658" y="218" font-size="12.5" fill="#1d1d1f">Lowest income:</text>
+<text x="658" y="235" font-size="12.5" fill="#1d1d1f">₹50,000 a month</text>
+<text x="658" y="256" font-size="12.5" fill="#1d1d1f">Instalments at most</text>
+<text x="658" y="273" font-size="12.5" fill="#1d1d1f">40% of income</text>
+<rect x="650" y="288" width="176" height="20" rx="4" fill="#ffffff"></rect>
+<text x="658" y="302" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#24685a">LICENCE</text>
+<rect x="650" y="314" width="176" height="50" rx="7" fill="#fbf4ec" stroke="#9a4f12" stroke-width="1.2"></rect>
+<use href="#f7-seal" x="814" y="348"></use>
+<text x="660" y="333" font-size="12.5" fill="#1d1d1f">Lending licence NB-2291</text>
+<text x="660" y="352" font-size="10.5" fill="#24685a">signed: the central bank</text>
+
+<!-- Tokens back -->
+<text x="420" y="405" font-size="14" font-weight="700" fill="#1d1d1f" text-anchor="middle">3. A signed token for each side</text>
+<path d="M300 378L300 420" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#f7-t)"></path>
+<path d="M540 378L540 420" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#f7-t)"></path>
+
+<rect x="4" y="424" width="404" height="140" rx="10" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.4"></rect>
+<text x="18" y="446" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#2c5a85">ASHA TAKES BACK</text>
+<use href="#f7-seal" x="390" y="442"></use>
+<text x="18" y="470" font-size="13" fill="#1d1d1f">The lender holds a lending licence: <tspan font-weight="700">yes</tspan></text>
+<text x="18" y="491" font-size="13" fill="#1d1d1f">You qualify for this offer: <tspan font-weight="700">yes</tspan></text>
+<text x="18" y="512" font-size="13" fill="#1d1d1f">The terms stay fixed for 30 days: <tspan font-weight="700">yes</tspan></text>
+<text x="18" y="548" font-size="11.5" font-weight="700" fill="#9a4f12">not the bank’s limits</text>
+
+<rect x="432" y="424" width="404" height="140" rx="10" fill="#edf5f2" stroke="#24685a" stroke-width="1.4"></rect>
+<text x="446" y="446" font-size="10.5" font-weight="800" letter-spacing=".06em" fill="#24685a">NORTHBANK TAKES BACK</text>
+<use href="#f7-seal" x="818" y="442"></use>
+<text x="446" y="468" font-size="12.5" fill="#1d1d1f">Income above your minimum, 3 of 3 months: <tspan font-weight="700">yes</tspan></text>
+<text x="446" y="487" font-size="12.5" fill="#1d1d1f">Average monthly income: <tspan font-weight="700">₹50,000 – 1,00,000</tspan></text>
+<text x="446" y="506" font-size="12.5" fill="#1d1d1f">Instalments within your limit: <tspan font-weight="700">yes</tspan></text>
+<text x="446" y="525" font-size="12.5" fill="#1d1d1f">No missed payments in 12 months: <tspan font-weight="700">yes</tspan></text>
+<text x="446" y="548" font-size="11.5" font-weight="700" fill="#9a4f12">not the salary, not her name</text>
+</g>
+</svg>
+<figcaption><b>Figure 7.</b> One meeting, with the sample's own values. Asha's agent brings three values, each signed by its issuer, and she approves with a swipe. Northbank's business agent brings its public offer, its private limits and its signed licence. The middle ground checks everything under the credit offer rule sheet, and each side takes back only its own signed confirmation token. Asha does not learn the bank's limits, and the bank does not learn her salary or her name.</figcaption>
+</figure>
+
+<ol>
+<li><b>Northbank opens a room.</b> Its business agent opens a room at the middle ground with its public offer, its private limits and its lending licence, which is signed by the central bank. Any agent can read the offer, but not the limits.</li>
+<li><b>Asha approves.</b> Her agent finds the room, reads the rule sheet and gathers the certificate tokens it asks for: her salary credits, signed by her employer, and her repayment record, signed by a credit bureau. Asha sees one screen, "Send these to Northbank's room?", and approves it with a fingerprint swipe.</li>
+<li><b>The middle ground checks.</b> Whichever side arrives first waits for the other. When both are in, the middle ground checks every token, and the rule sheet looks at both sides' values together. The middle ground then signs a confirmation token for each side and wipes the data.</li>
+<li><b>Each side reads its token.</b> Asha learns that the lender is licensed and that she qualifies, but not where Northbank's limits are. Northbank learns that she meets its rules and who signed each piece of proof, but not her salary or her name.</li>
+<li><b>Asha decides.</b> If she wants the loan and chooses Northbank from among different such bank interactions, then Asha and bank can exchange actual data and contact info and interact further in the existing process. Or else, even these steps can be modified to be done using personal agent. Asha accepts with a fresh swipe, and only then does the bank learn who she is. Northbank sends its offer letter to her agent as a certificate token, with the terms fixed for 30 days.</li>
+</ol>
+<p>Section 7.1 looks at what this changes for people and for lenders.</p>
+
+<h3 id="s3-1">3.1 Try it yourself</h3>
+<p>The code for the middle ground, the personal agent and the business agent, with this meeting and the other samples, is public at <a href="https://github.com/tonymcodes/Agent-Middleground-Protocol">github.com/tonymcodes/Agent-Middleground-Protocol</a>. It is starter code, not a product. It lets anyone run a middle ground on their own computer, watch a meeting from both sides, change the values, try fake tokens and write a rule sheet of their own. It needs only Node.js, version 18 or later.</p>
+<pre class="cmd">git clone https://github.com/tonymcodes/Agent-Middleground-Protocol
+cd Agent-Middleground-Protocol
+npm start          then open http://localhost:8787/try/</pre>
+<figure id="fig8"><div class="pair"><img src="images/amp/person-brings.png" alt="The personal agent page: what the agent will bring, each value with the certificate token behind it, and the approval before sending"><img src="images/amp/business-brings.png" alt="The business agent page: the bank's public offer and its private limits"></div>
+<figcaption><b>Figure 8 (from the sample).</b> Two pages of the sample, for the meeting above. Left, Asha's personal agent: each value it will bring, with the certificate token behind it, and the approval before anything is sent. Right, Northbank's business agent: its public offer and its private limits. The sample also has a page for the middle ground and one for the mock issuers.</figcaption></figure>
+<p>Things to try: run the credit offer as it is; lower the salary at the mock issuers and see the answer change; try the six kinds of fake token, each refused with its reason (section 5.2); let two people sell a bicycle; send a token back, such as the offer letter; and write a rule sheet of your own. The repo's README also shows how to run each page on its own port, or on separate machines.</p>
+
+<h2 id="s4">4. Examples</h2>
+<p class="lead">Fifteen use cases, to show the range of what AMP makes possible. Four of them are worked out in detail in section 7.</p>
+
+<p><b>Shopping without spam.</b> A person's agent states what the person wants to buy, and makers and shops answer at a middle ground. A shop learns only the area and a budget range, not the person's name, and the person gets at most one sponsored message, matched to what they asked for.</p><p><b>Financial offers without statements.</b> A bank, an insurer or a lender finds out whether a person meets its rules, such as income, repayments or existing cover, without receiving a single statement. The person finds out which offers they qualify for before applying.</p>
+
+<p><b>Loyalty discounts from bills.</b> A maker wants to reward people who buy its products often. The person's agent brings the bills, signed by the shops, and the maker learns only something like "bought 6 to 10 times since June". It does not see the bills, or anything else the person bought.</p>
+
+<p><b>Catalogues straight from makers.</b> Makers publish their products directly to the public via middle grounds. The personal agents can use them to build shopping assistants across different categories. Online delivery companies can then focus on delivery and service by connecting with the shopping agent inside the personal agents and adapt to users shopping via agents.&nbsp;</p>
+
+<p><b>Marketplaces for used goods, tickets.</b> The seller proves ownership with the shop's bill and the maker's warranty, and the buyer proves that they have the money. Neither side's price limit is shown to the other. This helps to create marketplaces using middlegrounds.&nbsp;</p>
+
+<p><b>Finding people with shared interests.</b> Two people's agents meet over their interests, their history and their own words, backed by tokens where possible. Each person learns whether there is a match, and contact details are passed on only when both accept.</p>
+
+<p><b>Pay talks with verified summaries.</b> A person brings one verified figure, such as their pay signed by their employer. In return they see a verified summary of pay for their kind of work in their city. No one sees anyone else's pay.</p><p><b>Health data pooling. </b>People keep the reports from hospitals, labs and consultation apps in their personal agent. When an authorised health office asks a question, for example whether breathing problems have gone up after a spell of pollution, each agent answers according to its person's own rule, with a short summary: the area, an age range, and whether a recent test showed the problem. The department sees only counts by area. Today these records are scattered across clinics, and users and there is no quick way to collate such health information.</p>
+
+<p><b>Hiring.</b> A resume becomes a set of certificate tokens, and roles and candidates meet at a middle ground all the time. Salary expectations are checked against the budget without either side seeing the other's number.&nbsp;</p>
+
+<p><b>Checks between companies.</b> A buyer checks that a supplier's turnover, certifications and tax filings meet its rules, without the supplier having to share its accounts.</p>
+
+<p><b>Investor updates.</b> A young company wants to show that it has reached certain milestones, such as users growing every month and revenue above a mark, to its investors and to people who might invest later. It cannot hand its analytics to people who are not yet investors. At a middle ground, figures signed by its analytics and payment systems are checked against each investor's questions, and each investor takes back only a confirmation token, such as "revenue above ₹1 crore a quarter: yes".</p>
+
+<p><b>Legal terms and agreements.</b> Fine print is almost impossible for people to read, and a clause in one service's terms can quietly contradict a clause the person has already agreed to elsewhere. The personal agent keeps the terms the person has agreed to across all their apps and services, each signed by the company as a certificate token, and shows the person a short summary. Before the person signs up for something new, the agent takes these terms to a middle ground, where the new company brings its terms, also signed. The new terms are read clause by clause against the old ones, and anything that contradicts what the person already agreed to, or any clause worth knowing about, is pointed out in plain words. The two sides can then negotiate there, round by round, with each round written down and signed, and confirm only when both agree.</p>
+
+<p><b>Age checks.</b> A website or a shop learns "over 18: yes", backed by an identity certificate token, and nothing more. It does not learn the person's name or date of birth.</p>
+
+<p><b>Local services.</b> A person asks for a plumber or a tutor nearby. Verified local providers answer with their prices and licences, and the person's address is shared only with the one they choose.</p>
+
+<p><b>Cities and traffic planning.</b> A city can ask the people going to a big event where they will travel from and how, and plan traffic and transport based on the counts.&nbsp;</p>
+
+<h2 id="s5">5. Security</h2>
+<p class="lead">Each step of a meeting adds its own check: the fingerprint and person pass, the joined company, the token chain, the rule sheet, the code fingerprint and the signatures.&nbsp;</p>
+
+<h3 id="s5-1">5.1 The person</h3>
+<p><b>A real person pass</b> from the agent provider says one real person stands behind the agent. It stops programs posing as people, and makes every agent interaction to be authorised by a real human. <b>The fingerprint guards the key:</b> malware on the phone cannot sign without the person's swipe, and the device's signature covers this agent and this very request, so it cannot be reused. <b>Anyone can check it again:</b> when the person shares their agent's key with the other side, that side's token carries the device's own signed approval and the pass, to check on its own computer. Otherwise it carries only the middle ground's word, so two meetings cannot be linked to the same person. <b>A lost phone</b> still needs the fingerprint, and the person can cancel the pass through their provider.</p>
+
+<h3 id="s5-2">5.2 Certificate tokens</h3>
+<p>Every token in the sample is signed with EdDSA [1]. The sample code demonstrates how to test by making six kinds of fake tokens, and each runs into a different check:</p>
+<table class="kinds">
+<tbody><tr><th>Fake</th><th>What catches it</th></tr>
+<tr><td>A value changed after signing</td><td>The signature no longer matches.</td></tr>
+<tr><td>A forger signs in the issuer's name with its own key</td><td>No trusted registry confirmed that key.</td></tr>
+<tr><td>A forger writes its own key note in the registry's name</td><td>The key note is not signed by that registry.</td></tr>
+<tr><td>A key note from a registry nobody trusts</td><td>The registry is not on the middle ground's list.</td></tr>
+<tr><td>A real token issued to someone else</td><td>It names another agent's key.</td></tr>
+<tr><td>A real token that has run out</td><td>Its date.</td></tr>
+</tbody></table>
+<p>A signature proves who said what. An issuer that lies is answered by its registry, which can stop confirming it; important matters accept only listed issuers. Tokens have short lives, so a corrected token simply replaces the old one.</p>
+
+<h3 id="s5-3">5.3 The middle ground</h3>
+<p>The middle ground sees both sides' data, so AMP does not ask anyone to trust a host's promises. It asks the host to show what it runs. Its page compares every file with the public code on GitHub, and the code fingerprint goes into every token it signs; a host that changes the code changes the fingerprint, and agents that check it refuse to meet there (Figure 9).</p>
+<figure id="fig9">
+<svg viewBox="0 0 840 214" role="img" aria-label="Three fingerprints must match: GitHub, the cloud platform and every token">
+<defs><marker id="a10-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker><marker id="a10-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker></defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+<rect x="4" y="10" width="250" height="122" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="1.5"></rect>
+<text x="24" y="47" font-size="17" fill="#1d1d1f" font-weight="700">GitHub</text>
+<text x="24" y="71" font-size="13.5" fill="#5b5b60">the public code</text>
+<text x="24" y="112" font-size="14.5" fill="#1d1d1f">fingerprint d163…</text>
+<text x="272" y="80" font-size="30" fill="#24685a" font-weight="700" text-anchor="middle">=</text>
+<rect x="295" y="10" width="250" height="122" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="1.5"></rect>
+<text x="315" y="47" font-size="17" fill="#1d1d1f" font-weight="700">Cloud platform</text>
+<text x="315" y="71" font-size="13.5" fill="#5b5b60">what this server runs</text>
+<text x="315" y="112" font-size="14.5" fill="#1d1d1f">fingerprint d163…</text>
+<text x="563" y="80" font-size="30" fill="#24685a" font-weight="700" text-anchor="middle">=</text>
+<rect x="586" y="10" width="250" height="122" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="1.5"></rect>
+<text x="606" y="47" font-size="17" fill="#1d1d1f" font-weight="700">Every token</text>
+<text x="606" y="71" font-size="13.5" fill="#5b5b60">written by the middle ground</text>
+<text x="606" y="112" font-size="14.5" fill="#1d1d1f">fingerprint d163…</text>
+<text x="420" y="170" font-size="15" fill="#1d1d1f" text-anchor="middle">All three equal: the server runs exactly the public code.</text>
+<text x="420" y="198" font-size="13.5" fill="#5b5b60" text-anchor="middle">Today the host shows its own fingerprint; the middle check is the step cloud platforms can offer.</text>
+</g></svg>
+<figcaption><b>Figure 9.</b> The three-fingerprint match. The fingerprint of the public code, the fingerprint the cloud platform confirms for the running server, and the fingerprint in every token must all be equal.</figcaption>
+</figure>
+<p>The middle ground also limits what a rule sheet can do, so that even a badly written rule sheet cannot leak private data. Answers can take only a few fixed shapes, such as a yes or no, a range or a count. The same two sides can meet only a few times a day, ranges are kept wide, and counts for very small groups are hidden, so no one can work out the other side's values by asking again and again. Data is held in memory only, and only while a room waits for the other side. The middle ground writes nothing to files and sends nothing to any other server.</p><p>Trust in a host can grow step by step. At first, people can rely on well-known hosts or reputed companies that work under legal terms, as they do with websites today. Next, cloud platforms can offer a new cloud module suitable for running codes likes AMP that can confirm in public the fingerprint of the code that each middle ground runs, so a new host can earn trust in the same way that https lets any new website be trusted. After that, reputed companies can audit hosts. As a very advanced option, special hardware can vouch for the exact code a server runs.</p><p><span style="font-size: 20px; font-weight: 600;"><br></span></p><p><span style="font-size: 20px; font-weight: 600;">5.4 Limits</span></p>
+<p>AMP cannot stop a person from showing their own data elsewhere, make a lying issuer to be honest (only accountable), or protect a phone that is unlocked and in someone else's hands. A host that is dishonest and that nobody checks could misuse what it sees, which is why the code fingerprint, its confirmation by cloud platforms, and each side's free choice of middle ground matter.&nbsp;</p>
+
+<h2 id="s6">6. Related work</h2>
+<p>Many of AMP's pieces exist on their own already. What is new is the neutral room where both sides' private data meet under predefined rules, and the signed confirmation each side takes back.</p>
+<table class="kinds">
+<tbody><tr><th>What exists</th><th>What it does</th><th>How AMP differs</th></tr>
+<tr><td>Website APIs</td><td>Let company servers call each other.</td><td>Each side still sends its data to the other. AMP lets both bring data to a neutral place and take back only some confirmations.</td></tr>
+<tr><td>Single sign-on ("sign in with…")</td><td>Proves who you are to a website.</td><td>Proves identity only. AMP confirms facts about a person, and about the company, without revealing them.</td></tr>
+<tr><td>W3C Verifiable Credentials</td><td>A standard for signed credentials that a holder shows to a verifier.</td><td>Close to certificate tokens. The verifier still sees the credential; in AMP, credentials are seen only in the room, and both sides' data meet there.</td></tr>
+<tr><td>DigiLocker and GST e-invoices</td><td>Signed documents and invoices, checkable by anyone.</td><td>Show that signed records work at national scale. AMP adds the room where they are compared, and the confirmation that leaves it.</td></tr>
+<tr><td>Data clean rooms</td><td>Let two companies match their customer data in a controlled place.</td><td>Built between large companies, for advertising. AMP is open code, for anyone, including a single person to start using.&nbsp;</td></tr>
+<tr><td>Agent protocols (MCP, A2A)</td><td>Let agents connect to tools, and to each other.</td><td>Template for how agents talk. AMP is about where private data can safely meet; it can sit beside them.</td></tr>
+<tr><td>https and certificate companies</td><td>Prove a website is who it claims, through a short list of trusted certificate companies.</td><td>AMP uses the same model for issuers and registries, and for trust in middle grounds.</td></tr>
+<tr><td>Confidential computing, such as Apple Private Cloud Compute</td><td>Hardware proves which code a server runs, and only then is data sent.</td><td>AMP starts without special hardware, with public code and fingerprints, and can add hardware proofs later.</td></tr>
+</tbody></table>
+
+<h2 id="s7">7. Detailed examples</h2>
+<p class="lead">Four examples in more detail: finance, used goods sale, hiring, and a city traffic office working with citizens. Each one has a ready sample in the starter code. The first is the meeting described in&nbsp; section 3; the other three follow the same order: the situation today, what each side brings, what the middle ground looks at, what each side takes back, and what changes.</p>
+
+<h3 id="s7-1">7.1 Finance: a credit offer without handing over statements</h3>
+<p><b>Today.</b> To get a personal loan, a person uploads months of bank statements and salary slips. The lender keeps them, and often a separate verification agency keeps a copy too. The person cannot know in advance whether they qualify, because the lender's rules are private, so they apply to several lenders and hand their statements and personal data to each one.</p>
+<p><b>With AMP.&nbsp;</b>The person's agent brings three months of salary credits signed by the employer, and a repayment record signed by a credit bureau. The bank brings its public offer, its private limits and its lending licence. The bank takes back yes-or-no answers, an income range and who signed each piece of proof. The person takes back whether the lender is licensed and whether they qualify. No statement, salary figure or limit leaves the room. This way a user can do an initial qualification check with banks and lenders without revealing too much data</p>
+<p><b>What changes.&nbsp;</b>The person can check many lenders without handing statements to any of them, and applies only where they qualify. When they accept, with a swipe, the bank sends an offer letter as a certificate token. Lenders no longer have to collect and protect statements, and they can make firm offers to applicants whose income is already proven. The same pattern fits insurance renewals, credit card limits and rental deposits.</p>
+
+<h3 id="s7-2">7.2 Used goods marketplace/sale between people</h3>
+<p><b>Today.</b> Selling a used bicycle online means posting a listing with no proof of ownership and haggling over the phone with strangers. Both sides face scams: stolen goods, fake buyers, and advance payments for items that do not exist.</p>
+<p><b>What each side brings.</b>&nbsp;In this detailed example, the seller Meera brings the item, a Velora R2 road bike, with an asking price of ₹32,000 and a lowest acceptable price of ₹28,000, kept private. She also brings the original bill in digital format and the maker's warranty, each as certificate tokens. The buyer, Rohan, brings what he is looking for, the most he will pay, ₹30,000, which stays private, and the money he has available, confirmed by his bank as a balance check confirmation.</p>
+<p><b>What the middle ground looks at.</b> Whether the bill is signed by the shop, whether the warranty is still valid, how long ago the bike was bought, whether the buyer has enough money, whether the bike matches what the buyer wants, and whether the two private prices meet.</p>
+<p><b>What each side takes back.</b> Rohan learns that Meera owns the bike, that the bill is signed by the shop, that the warranty is valid, that the bike was bought 1 to 2 years ago, and that the prices meet. Meera learns that Rohan has the money for the asking price, that he is looking for this kind of bike, and that the prices meet. Both tokens suggest the same price, ₹29,000, halfway between his highest and her lowest, without showing either number (Figure 10).</p>
+<figure id="fig10">
+<svg viewBox="0 0 840 408" role="img" aria-label="A seller’s and a buyer’s agents bring proof and private price limits; each takes back a token and a suggested price">
+<defs><marker id="a11-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker><marker id="a11-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker></defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+<rect x="4" y="10" width="258" height="226" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></rect>
+<text x="24" y="46.5" font-size="16.5" fill="#2c5a85" font-weight="700">Meera, the seller, brings</text>
+<text x="24" y="78.5" font-size="14.5" fill="#1d1d1f">bill, signed by the shop</text>
+<text x="24" y="102.5" font-size="14.5" fill="#1d1d1f">warranty, from the maker</text>
+<text x="24" y="126.5" font-size="14.5" fill="#1d1d1f">asking price ₹32,000</text>
+<text x="24" y="162.5" font-size="14.5" fill="#5f4b8b">lowest price ₹28,000</text>
+<text x="24" y="186.5" font-size="14.5" fill="#5f4b8b">private: seen only here</text>
+<rect x="578" y="10" width="258" height="226" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></rect>
+<text x="598" y="46.5" font-size="16.5" fill="#2c5a85" font-weight="700">Rohan, the buyer, brings</text>
+<text x="598" y="78.5" font-size="14.5" fill="#1d1d1f">looking for a road bike</text>
+<text x="598" y="102.5" font-size="14.5" fill="#1d1d1f">money available,</text>
+<text x="598" y="126.5" font-size="14.5" fill="#1d1d1f">signed by his bank</text>
+<text x="598" y="162.5" font-size="14.5" fill="#5f4b8b">highest price ₹30,000</text>
+<text x="598" y="186.5" font-size="14.5" fill="#5f4b8b">private: seen only here</text>
+<rect x="300" y="10" width="240" height="226" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="420" y="46.5" font-size="16.5" fill="#1d1d1f" font-weight="700" text-anchor="middle">Agent Middleground</text>
+<text x="420" y="70.5" font-size="13.5" fill="#5b5b60" text-anchor="middle">the used-goods rule sheet</text>
+<text x="420" y="102.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">owns it? bill signed?</text>
+<text x="420" y="127.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">warranty still valid?</text>
+<text x="420" y="152.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">buyer has the money?</text>
+<text x="420" y="177.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">do the prices meet?</text>
+<path d="M264 120L296 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a11-a)"></path>
+<path d="M576 120L544 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a11-a)"></path>
+<path d="M380 238L230 276" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a11-t)"></path>
+<path d="M460 238L610 276" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a11-t)"></path>
+<rect x="4" y="282" width="406" height="84" rx="12" fill="#ffffff" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="22" y="309" font-size="15" fill="#9a4f12" font-weight="700">Meera’s token</text>
+<text x="22" y="334" font-size="14.5" fill="#1d1d1f">buyer has the money, wants this bike: yes</text>
+<text x="22" y="356" font-size="14.5" fill="#5b5b60">suggested price ₹29,000</text>
+<rect x="430" y="282" width="406" height="84" rx="12" fill="#ffffff" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="448" y="309" font-size="15" fill="#9a4f12" font-weight="700">Rohan’s token</text>
+<text x="448" y="334" font-size="14.5" fill="#1d1d1f">she owns it · bill signed · warranty valid</text>
+<text x="448" y="356" font-size="14.5" fill="#5b5b60">suggested price ₹29,000</text>
+<text x="420" y="396" font-size="13.5" fill="#5b5b60" text-anchor="middle">Neither price limit leaves the room. Contact details pass only when both accept.</text>
+</g></svg>
+<figcaption><b>Figure 10.</b> Used goods sale between people. Each side brings proof and a private price limit. The middle ground checks them together, and each takes back only what it needs, with the same suggested price.</figcaption>
+</figure>
+<p><b>What changes.</b> Both sides are real, verified people: the seller has proven ownership and the buyer has proven the money. Contact details are passed on only when both accept, and delivery and payment happen in the real world after trust is built digitally with authentic information. After the sale, Meera's agent can pass the bill and the warranty on to Rohan's agent, and her old tokens stop working, so the same bike cannot be sold twice, while Rohan becomes new owner in warranty. This also opens a new kind of marketplace where interactions happen automatically and quickly via agents and existing companies or newer ones can provide well designed middlegrounds that offer more features for this need.&nbsp;</p>
+
+<h3 id="s7-3">7.3 Recruitment: always-on hiring</h3>
+<p><b>Today.</b> People upload the same resume to many career sites, and are interviewed again and again for the same skills. Companies sift through claims they cannot check, and salary talks begin with each side guessing the other's number.</p>
+<p><b>The resume as a set of tokens.</b> With AMP, every line of a resume is backed by a certificate token: the degree signed by the university, past roles signed by past employers, and skill scores from talent-pool interviews. A talent-pool interview is a new step, in which a subject expert checks a skill once and any company can then rely on the score. Experts stand behind their scores under their own verified identity. A company still makes its own final decision, but by using pre-verified information can easily complete early stages of hiring at Agent interaction speed.</p>
+<p><b>What each side brings.</b> The candidate, Anjali, brings her skills, signed by a talent pool, five years of experience with project details, signed by a past employer, her degree, signed by the university, and her expected pay of ₹20 lakh a year, which stays private. The company, Kestrel Labs, brings a role (backend engineer, Bengaluru), the skills it needs, a minimum of three years of experience, a published pay range of ₹18 – 22 lakh, and its private top budget.</p>
+<p><b>What the middle ground looks at.</b> Whether every needed skill is proven, the candidate's experience as a range, and whether her expected pay fits within the company's budget.</p>
+<p><b>What each side takes back.</b> The company learns that all the skills are proven, that she has 5 years of experience, her pay fits its budget, and who signed each piece of digital proof. Anjali learns that the role's pay range covers what she expects. Neither side learns the other's exact number in early phase (Figure 11).</p>
+<figure id="fig11">
+<svg viewBox="0 0 840 408" role="img" aria-label="Recruitment: the candidate’s agent and the company each bring their data; each takes back a token without the other’s numbers">
+<defs><marker id="a12-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker><marker id="a12-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker></defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+<rect x="4" y="10" width="258" height="226" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></rect>
+<text x="24" y="46.5" font-size="16.5" fill="#2c5a85" font-weight="700">Anjali’s agent brings</text>
+<text x="24" y="78.5" font-size="14.5" fill="#1d1d1f">Skills, signed by experts</text>
+<text x="24" y="102.5" font-size="14.5" fill="#1d1d1f">5 years exp from her employer,</text>
+<text x="24" y="126.5" font-size="14.5" fill="#1d1d1f">Degree from the university</text>
+<text x="24" y="162.5" font-size="14.5" fill="#5f4b8b">expected pay ₹20 lakh</text>
+<text x="24" y="186.5" font-size="14.5" fill="#5f4b8b">private: seen only here</text>
+<rect x="578" y="10" width="258" height="226" rx="14" fill="#edf5f2" stroke="#24685a" stroke-width="1.5"></rect>
+<text x="598" y="46.5" font-size="16.5" fill="#24685a" font-weight="700">Kestrel Labs brings</text>
+<text x="598" y="78.5" font-size="14.5" fill="#1d1d1f">backend engineer, Bengaluru</text>
+<text x="598" y="102.5" font-size="14.5" fill="#1d1d1f">skills needed, 3+ years</text>
+<text x="598" y="126.5" font-size="14.5" fill="#1d1d1f">pay range ₹18–22 lakh</text>
+<text x="598" y="162.5" font-size="14.5" fill="#5f4b8b">its top budget</text>
+<text x="598" y="186.5" font-size="14.5" fill="#5f4b8b">private: seen only here</text>
+<rect x="300" y="10" width="240" height="226" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="420" y="46.5" font-size="16.5" fill="#1d1d1f" font-weight="700" text-anchor="middle">Agent Middleground</text>
+<text x="420" y="70.5" font-size="13.5" fill="#5b5b60" text-anchor="middle">the hiring rule sheet</text>
+<text x="420" y="102.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">every skill proven?</text>
+<text x="420" y="127.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">experience, as a range</text>
+<text x="420" y="152.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">pay within the budget?</text>
+<path d="M264 120L296 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a12-a)"></path>
+<path d="M576 120L544 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a12-a)"></path>
+<path d="M380 238L230 276" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a12-t)"></path>
+<path d="M460 238L610 276" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a12-t)"></path>
+<rect x="4" y="282" width="406" height="84" rx="12" fill="#ffffff" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="22" y="309" font-size="15" fill="#9a4f12" font-weight="700">Anjali’s token</text>
+<text x="22" y="334" font-size="14.5" fill="#1d1d1f">the role’s pay covers what you expect: yes</text>
+<text x="22" y="356" font-size="14.5" fill="#5b5b60">no budget figure</text>
+<rect x="430" y="282" width="406" height="84" rx="12" fill="#ffffff" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="448" y="309" font-size="15" fill="#9a4f12" font-weight="700">Kestrel Labs’ token</text>
+<text x="448" y="334" font-size="14.5" fill="#1d1d1f">skills proven · 5–8 years · pay fits: yes</text>
+<text x="448" y="356" font-size="14.5" fill="#5b5b60">who signed each proof · no name</text>
+<text x="420" y="396" font-size="13.5" fill="#5b5b60" text-anchor="middle">Neither side learns the other’s number. Anjali becomes known only when she says yes.</text>
+</g></svg>
+<figcaption><b>Figure 11.</b> Always-on hiring. Each line of Anjali’s resume is a certificate token, and the role brings its needs and a private budget. Each side takes back only what it needs to decide.</figcaption>
+</figure>
+<p><b>What changes.</b> No one has to apply. Roles and resumes meet at the middle ground all the time, and a candidate becomes known to a company only when she says yes. The company can then send an interview invitation as a certificate token. Once she accepts an offer, her resume is paused. When a hire is made, the hiring fee can be shared, by a published rule, between the middleground host and the experts whose scores the company relied on. This means a candidate can keep collecting tokens for each resume point and keep an Agent ready CV and apply to multiple companies instantly via Agent Middlegrounds. Companies can quickly filter and build a more suitable pool quickly by letting their business agents do the initial screening using interactions with candidate agents via middlegrounds.&nbsp;&nbsp;</p>
+
+<h3 id="s7-4">7.4 City and citizens: planning traffic from the people coming</h3>
+<p><b>Today.</b> On a Saturday in Bengaluru, there is a sold-out cricket match at Chinnaswamy Stadium starting at 7:30 pm, and a concert at Palace Grounds, a few kilometres north, starting at 7 pm. About 45,000 people will travel from all over the city between 5 and 7:30 pm, right in the evening peak. The traffic police know the venues and the start times, but they do not know where the crowds will come from, and this info can change with every event.</p>
+<p><b>With AMP.</b> The city traffic office opens a middleground for traffic stats. Each ticket holder's agent follows a rule the person set once, for example "share my area and travel plan for events, within the city only". It brings the ticket as a certificate token signed by the ticket office, so that only real tickets are counted and each one only once. It also brings the PIN code of residing place of the person which gives an indication of starting location, how they will travel(whether private vehicle or metro train), and when they plan to set out. The name, the exact address and the seat stay within the agent and is not copyable by other side.&nbsp;</p>
+<p><b>What the middle ground looks at.</b> It checks that each ticket is signed by the ticket office, then counts people by area, by way of travel and by half hour, hiding any group too small to protect the people in it. The sample hides groups of fewer than three; a city would choose a larger size, such as 20.</p>
+<p><b>What each side takes back.</b> Each person's agent gets a token saying they were counted and their details were dropped. The traffic office gets counts only (Figure 12). An illustration, with made-up numbers:</p>
+<table class="kinds">
+<tbody><tr><th>Coming from</th><th>People</th><th>Car</th><th>Two-wheeler</th><th>Taxi or auto</th><th>Metro or bus</th><th>Main way in</th></tr>
+<tr><td>South: Electronic City, HSR Layout, Koramangala</td><td>11,500</td><td>3,400</td><td>3,000</td><td>2,500</td><td>2,600</td><td>Hosur Road</td></tr>
+<tr><td>East: Whitefield, Marathahalli, Indiranagar</td><td>9,500</td><td>2,400</td><td>1,900</td><td>1,700</td><td>3,500</td><td>Old Airport Road, metro</td></tr>
+<tr><td>North: Hebbal, Yelahanka</td><td>6,000</td><td>2,100</td><td>1,500</td><td>1,100</td><td>1,300</td><td>Bellary Road</td></tr>
+<tr><td>West: Rajajinagar, Malleshwaram</td><td>4,000</td><td>1,000</td><td>1,300</td><td>600</td><td>1,100</td><td>Sankey Road</td></tr>
+</tbody></table>
+<figure id="fig12">
+<svg viewBox="0 0 840 408" role="img" aria-label="A pool room for a big event: ticket holders’ agents bring a few details; the traffic office gets only counts">
+<defs><marker id="a13-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3a3a3e"></path></marker><marker id="a13-t" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a4f12"></path></marker></defs>
+<g font-family="Nunito,system-ui,-apple-system,'Segoe UI',sans-serif">
+<rect x="16" y="22" width="258" height="226" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1"></rect>
+<rect x="10" y="16" width="258" height="226" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1"></rect>
+<rect x="4" y="10" width="258" height="226" rx="14" fill="#eef3f8" stroke="#2c5a85" stroke-width="1.5"></rect>
+<text x="24" y="46.5" font-size="16.5" fill="#2c5a85" font-weight="700">Each ticket holder’s agent</text>
+<text x="24" y="78.5" font-size="14.5" fill="#1d1d1f">the ticket, signed</text>
+<text x="24" y="102.5" font-size="14.5" fill="#1d1d1f">the area they leave from</text>
+<text x="24" y="126.5" font-size="14.5" fill="#1d1d1f">how and when they travel</text>
+<text x="24" y="162.5" font-size="14.5" fill="#5f4b8b">name, address and seat</text>
+<text x="24" y="186.5" font-size="14.5" fill="#5f4b8b">stay with the agent</text>
+<rect x="578" y="10" width="258" height="226" rx="14" fill="#fbf1e6" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="598" y="46.5" font-size="16.5" fill="#9a4f12" font-weight="700">Traffic office</text>
+<text x="598" y="78.5" font-size="14.5" fill="#1d1d1f">opens a middleground</text>
+<text x="598" y="102.5" font-size="14.5" fill="#1d1d1f">room for the event</text>
+<text x="598" y="138.5" font-size="14.5" fill="#1d1d1f">asks: where from,</text>
+<text x="598" y="162.5" font-size="14.5" fill="#1d1d1f">how, and when?</text>
+<rect x="300" y="10" width="240" height="226" rx="14" fill="#f6f4ee" stroke="#1d1d1f" stroke-width="2"></rect>
+<text x="420" y="46.5" font-size="16.5" fill="#1d1d1f" font-weight="700" text-anchor="middle">Agent Middleground</text>
+<text x="420" y="70.5" font-size="13.5" fill="#5b5b60" text-anchor="middle">a pool room</text>
+<text x="420" y="102.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">real tickets only,</text>
+<text x="420" y="126.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">each counted once</text>
+<text x="420" y="162.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">counts by area, way</text>
+<text x="420" y="186.5" font-size="14.5" fill="#1d1d1f" text-anchor="middle">of travel and half hour</text>
+<text x="420" y="210.5" font-size="14.5" fill="#5b5b60" text-anchor="middle">small groups hidden</text>
+<path d="M278 120L296 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a13-a)"></path>
+<path d="M576 120L544 120" fill="none" stroke="#3a3a3e" stroke-width="2" marker-end="url(#a13-a)"></path>
+<path d="M380 238L230 276" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a13-t)"></path>
+<path d="M460 238L610 276" fill="none" stroke="#9a4f12" stroke-width="2" stroke-dasharray="7 5" marker-end="url(#a13-t)"></path>
+<rect x="4" y="282" width="406" height="84" rx="12" fill="#ffffff" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="22" y="309" font-size="15" fill="#9a4f12" font-weight="700">Each person’s token</text>
+<text x="22" y="334" font-size="14.5" fill="#1d1d1f">counted; your details dropped</text>
+<text x="22" y="356" font-size="14.5" fill="#5b5b60">one token per person</text>
+<rect x="430" y="282" width="406" height="84" rx="12" fill="#ffffff" stroke="#9a4f12" stroke-width="1.5"></rect>
+<text x="448" y="309" font-size="15" fill="#9a4f12" font-weight="700">The traffic office’s token</text>
+<text x="448" y="334" font-size="14.5" fill="#1d1d1f">counts by area, way of travel and time</text>
+<text x="448" y="356" font-size="14.5" fill="#5b5b60">no ticket, name or address</text>
+<text x="420" y="396" font-size="13.5" fill="#5b5b60" text-anchor="middle">The office plans roads, trains and parking from counts alone.</text>
+</g></svg>
+<figcaption><b>Figure 12.</b> A middleground room for a big event. Each ticket holder’s agent brings a few details, by the person’s own rule. The traffic office gets only counts, and each person gets a token saying they were counted.</figcaption>
+</figure>
+<p><b>What changes.</b> The police can plan street by street before the evening starts. In this imaginary example, the south sends the biggest group, a third of it by car, onto Hosur Road in the peak hour, so the police keep the inbound lanes moving from 5:30 pm and staff the junctions where the crowd arrives. More than a third of the people from the east come by metro, so extra trains run on that line, and buses are added on the routes where many chose the bus. If more cars are expected than the parking near the venues can take, the city announces park-and-ride at outer metro stations, and the message reaches ticket holders' agents in advance. The same counts help with the return journey home, late at night and from one place.</p><p><br></p>
+<p>In future, ticket companies can add a question at checkout, "how will you travel for the day?", which then goes into the ticket token along with address details and makes the counts more accurate. None of this needs to be exact to be useful: a rough picture in advance is far better than current guessing.</p>
+
+<h2 id="s8">8. Conclusion</h2>
+<p>As personal agents arrive, exchanges of data between people and companies will happen many times a day, by programs. Handing data over, or taking someone's word, will not scale in this scenario. AMP proposes a new innovative way where both sides bring their data to a neutral place, a trusted program works out only the answers each side needs, each takes back a signed confirmation, and the data is wiped.</p>
+<p>For people, it means proving what matters without giving their records away, and receiving offers they qualify for instead of spam. For companies, it means checking facts by signature instead of collecting documents, and spending on the genuine customers. For hosts and cloud providers, it is a new kind of place on the internet to run. None of it needs new science or a blockchain. It needs issuers to sign what they already hand out, agents and companies to meet at middlegrounds, and hosts to show what they run. The open sample code runs every step today; we invite anyone to run it, change it, and host a middleground.</p>
+<p>Part 2, <a href="https://tonymcodes.github.io/Verification-Is-All-You-Need/paper/">Verification Is All You Need</a>, is another paper that is related to the concepts in this paper. It talks about verifying existing digital processes by making each part of a workflow requiring the verification digital signature from the authorised person in a particular role.</p>
+
+<h2 id="refs">References</h2>
+<ol class="refs">
+<li>Josefsson, S. and Liusvaara, I. (2017). <a href="https://www.rfc-editor.org/rfc/rfc8032">Edwards-Curve Digital Signature Algorithm (EdDSA)</a>. RFC 8032. The signature scheme used in the sample code.</li>
+<li>Tony Mathew (2020). <a href="https://tonymathew.medium.com/linkedin-suggestions-for-new-product-features-5381dca85079">LinkedIn: Suggestions for new product features</a>. Medium, 17 July 2020.</li>
+<li>Tony Mathew (2022). <a href="https://tonymathew.medium.com/reimagining-grocery-shopping-with-a-single-consumer-super-app-instead-of-multiple-service-provider-bf0999ecf240">Reimagining grocery shopping with a single consumer super app</a>. Medium, 30 November 2022.</li>
+</ol>
+</article>
+
+</div>
+
+
+
+
+</body></html>

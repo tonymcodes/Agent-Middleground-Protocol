@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business agent · meetings</title>
+<link rel="stylesheet" href="../meet.css">
+</head>
+<body class="business">
+<main>
+  <div class="bar"><h1 id="who">Business agent</h1><p>The company’s side. Sample code: <a href="company.js">starters/company</a>. It joins a middle ground once and opens rooms there.</p></div>
+  <div class="card extra" id="ground"><h2>The middle ground this agent uses</h2><p class="empty">Looking…</p></div>
+  <div class="card extra"><h2>Use case</h2><div class="chips" id="rules"></div><p class="small muted" id="ruleNote" style="margin:8px 0 0"></p></div>
+  <div class="card">
+    <h2>What our agent will bring</h2>
+    <label class="f"><span>Business name, as joined at the middle ground</span><input type="text" id="name"></label>
+    <p class="small muted extra" style="margin:0 0 10px">Public values may appear in the person’s confirmation token. Private values are seen in the room only, and never leave it.</p>
+    <div id="sheetBox" hidden>
+      <label class="f"><span>Our own rule sheet, as plain data (core/sheet.js). The middle ground runs it with no change of its own.</span><textarea class="mono" id="sheetText" style="min-height:260px"></textarea></label>
+      <div class="small" id="sheetNote" style="margin:-4px 0 10px"></div>
+    </div>
+    <div id="form"></div>
+    <div class="row" style="margin-bottom:10px"><button class="plain" id="reset">Reset the sample data and tokens</button></div>
+    <button class="big" id="open">Open a room with this data</button>
+    <div id="state"></div>
+  </div>
+  <div class="card" id="notesCard"><h2>Confirmation tokens this agent holds</h2><div id="notes"><p class="empty">None yet. One arrives when both sides have met.</p></div></div>
+  <div class="card"><h2>Rooms</h2><div id="rooms"><p class="empty">Looking…</p></div></div>
+  <div class="card extra" id="vault"></div>
+</main>
+<script src="../../core/code.js"></script>
+<script src="../../core/stamp.js"></script>
+<script src="../../core/carry.js"></script>
+<script src="../../core/link.js"></script>
+<script src="../../core/paper.js"></script>
+<script src="../../core/swipe.js"></script>
+<script src="../../core/sheet.js"></script>
+<script src="../samples.js"></script>
+<script src="company.js"></script>
+<script src="../meet-ui.js"></script>
+<script>
+(async () => {
+  const { esc, store, q } = MG.ui, $ = id => document.getElementById(id);
+  let addr = await MG.ui.findGround(), call = MG.link(addr), rules = [], rule = q.get('rule') || store.get('rule') || 'credit-offer', mine = [], others = [], busy = false, trust = MG.ui.trustFrom(null), checks = [];
+  const values = {}, names = {}, seen = {}, tellOthers = MG.ui.linkUseCase((r, fromParent) => pick(r, fromParent));
+  const sheet = () => rules.find(r => r.id === rule);
+  // OUR OWN RULE SHEET (rule "brought"): written here as plain data, checked here with the same checks the middle ground
+  // runs, and brought along when we open a room. Its fields for our side come from the sheet itself.
+  let own = null;
+  const readSheet = () => {
+    try { own = JSON.parse($('sheetText').value); } catch { own = null; $('sheetNote').innerHTML = '<span class="badge bad">not valid JSON</span>'; return; }
+    const c = MG.sheet.check(own);
+    if (!c.ok) { $('sheetNote').innerHTML = '<span class="badge bad">does not pass the checks</span> ' + c.problems.map(esc).join('; '); own = null; return; }
+    MG.sheet.fingerprint(own).then(f => { $('sheetNote').innerHTML = '<span class="badge stamp">passes the checks</span> fingerprint <span class="mono">' + esc(f) + '</span> · the person’s agent will see it and decide'; });
+  };
+  const defs = () => rule === 'brought' ? (own ? own.business : []) : sheet().fields.business;
+  const sample = () => MG.samples[rule] ? MG.samples[rule].business : { name: 'Your company', data: {} };
+  // JOINING. Once per name and middle ground. The key it gets back is kept, so the page can come back to its rooms.
+  async function company() {
+    // On a shared middle ground someone else may have joined under the sample name first. Then this page joins under the
+    // same name with a short tag added, and remembers it.
+    for (let tries = 0; tries < 3; tries++) {
+      const name = names[rule], co = MG.company(name, call), k = store.get('biz:' + addr + '|' + name);
+      if (k) co.resume(k);
+      const j = await co.join();
+      if (!j.error) { store.set('biz:' + addr + '|' + name, co.key()); return co; }
+      if (!/taken/.test(j.error)) return { error: j.error };
+      names[rule] = sample().name + ' ' + Math.random().toString(36).slice(2, 5).toUpperCase();
+      store.set('bizname:' + addr + '|' + rule, names[rule]);
+      $('name').value = names[rule]; announce(); await ensureSamplePapers();
+    }
+    return { error: 'This name is taken here. Change the business name, and try again.' };
+  }
+  // THE VAULT: papers issued to this business, by its name: a licence from the central bank, for example. Kept in this browser.
+  let vaultPapers = []; try { vaultPapers = JSON.parse(store.get('business.vault') || '[]'); } catch {}
+  const keepPapers = list => { vaultPapers = list; store.set('business.vault', JSON.stringify(vaultPapers)); showVault(); };
+  async function showVault() { checks = await MG.ui.vault($('vault'), { title: 'Certificate tokens issued to us', holder: names[rule], papers: vaultPapers, trust, onChange: keepPapers }); if (sheet()) draw(); }
+  async function ensureSamplePapers(force) {
+    const s = sample(), stamps = s.stamps || {}, missing = Object.keys(stamps).filter(f => force || !vaultPapers.some(p => p.heldBy === names[rule] && p.facts && p.facts.field === f));
+    const fresh = []; for (const f of missing) fresh.push(await (await MG.sampleIssuer(stamps[f], store)).forField(f, s.data[f], names[rule]));
+    if (fresh.length) keepPapers([...vaultPapers.filter(p => !(p.heldBy === names[rule] && p.facts && missing.includes(p.facts.field))), ...fresh]); else showVault();
+  }
+  const papers = () => { const keys = defs().map(d => d.key); return vaultPapers.filter(p => p.heldBy === names[rule] && p.facts && keys.includes(p.facts.field)); };
+  const announce = () => { if (parent !== window) parent.postMessage({ amp: 'agent', who: 'business', name: names[rule] }, '*'); };
+  addEventListener('message', e => {
+    if (!e.data) return;
+    if (e.data.amp === 'announce') announce();
+    if (e.data.amp === 'paper' && e.data.to === 'business' && e.data.paper) {
+      const p = e.data.paper;
+      keepPapers([...vaultPapers.filter(x => !(x.facts && p.facts && x.facts.field === p.facts.field && x.madeBy === p.madeBy && x.heldBy === p.heldBy)), p]);
+      if (p.facts && 'field' in p.facts && defs().some(d => d.key === p.facts.field)) values[rule][p.facts.field] = String(p.facts.value);
+      $('state').innerHTML = `<div class="status good">A certificate token arrived from ${esc(p.madeBy)}: ${esc(p.type)}. It is in our vault, checked below.</div>`;
+      draw();
+    }
+  });
+  function pick(r, fromParent) {
+    if (!rules.some(x => x.id === r)) return;
+    rule = r; store.set('rule', r); $('state').innerHTML = '';
+    if (!values[r]) { values[r] = { ...sample().data }; names[r] = store.get('bizname:' + addr + '|' + r) || sample().name; }
+    if (!fromParent) tellOthers(r);
+    $('rules').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.r === r));
+    const s = sheet();
+    $('ruleNote').innerHTML = `${esc(s.title)} · ${s.kind === 'pool' ? 'a pool room: one office, many people' : 'a pair room: one person, one business'} · rule sheet <span class="mono">${esc(s.fingerprint)}</span>`;
+    $('name').value = names[r];
+    $('open').hidden = !(s.openedBy || []).includes('business');
+    $('sheetBox').hidden = r !== 'brought';
+    if (r === 'brought' && !$('sheetText').value) $('sheetText').value = JSON.stringify(MG.samples.brought.sheet, null, 2);
+    if (r === 'brought') readSheet();
+    announce();
+    ensureSamplePapers().then(() => { draw(); refresh(); });
+  }
+  function draw() {
+    $('who').textContent = 'Business agent · ' + names[rule];
+    MG.ui.form($('form'), defs(), values[rule], 'business', (k, v) => MG.ui.proofBadge(vaultPapers.filter(p => p.heldBy === names[rule]), checks.filter((c, n) => vaultPapers[n] && vaultPapers[n].heldBy === names[rule]), k, v));
+    const mineHere = mine.filter(m => m.rule === rule);
+    $('rooms').innerHTML = (mineHere.map(m => `<div class="room"><b>Our room ${esc(m.room)}</b><div class="small muted">${esc(m.state)}</div>${m.pool ? '<button class="plain" data-collect="' + esc(m.room) + '">Collect the counts now</button>' : ''}</div>`).join('')
+      + others.map(x => `<div class="room"><b>${esc(x.openedBy)}</b><div class="small muted">Waiting for a business · room ${esc(x.room)}</div><button class="plain" data-join="${esc(x.room)}">Bring our data into this room</button></div>`).join(''))
+      || '<p class="empty">No rooms yet. Open one above.</p>';
+    $('rooms').querySelectorAll('[data-join]').forEach(b => b.onclick = () => joinRoom(b.dataset.join));
+    $('rooms').querySelectorAll('[data-collect]').forEach(b => b.onclick = () => collect(b.dataset.collect));
+    $('open').disabled = busy;
+  }
+  // PAPERS BACK. When the person agreed, our note names their agent's key. As an issuer, we can sign a paper for them
+  // (an offer letter, a voucher, an invitation) and send it through the middle ground.
+  async function sendBack(note) {
+    const what = sample().issues, iss = await MG.sampleIssuer(names[rule], store), co = await company();
+    if (co.error) return show(co);
+    const paper = await iss.paper(what.type, { field: what.type, value: what.value(values[rule]) }, note.replyTo, what.days || 30);
+    const r = await co.sendPaper(paper, note.replyTo);
+    $('state').innerHTML = r.error ? `<div class="status bad">${esc(r.error)}</div>` : `<div class="status good">Signed “${esc(what.type)}” and sent it through the middle ground (${esc(r.check)}). The person’s agent collects it from there.</div>`;
+  }
+  function show(r) {
+    if (r.error) { $('state').innerHTML = `<div class="status bad">${esc(r.error)}</div>`; return; }
+    if ($('notes').querySelector('.empty')) $('notes').innerHTML = '';
+    const el = MG.ui.note(r.note, trust), old = r.note.counts && $('notes').querySelector('[data-room="' + r.note.room + '"]');
+    el.dataset.room = r.note.room;
+    if (r.note.replyTo && sample().issues) { const b = document.createElement('button'); b.className = 'plain'; b.style.margin = '0 12px 12px'; b.textContent = 'Sign and send “' + sample().issues.type + '” to this person'; b.onclick = () => { b.disabled = true; sendBack(r.note); }; el.append(b); }
+    if (old) old.replaceWith(el); else { $('notes').prepend(el); scrollTo({ top: $('notesCard').offsetTop - 8, behavior: 'smooth' }); }
+    $('state').innerHTML = '<div class="status good">A confirmation token arrived from the middle ground. The data in the room was wiped.</div>';
+  }
+  async function collect(room) {
+    const co = await company(); if (co.error) return show(co);
+    const r = await co.meetPickup(room);
+    const m = mine.find(x => x.room === room);
+    if (r.waiting) { if (m) m.state = 'Waiting for the ' + r.waitingFor; }
+    else { if (m && !m.pool) mine = mine.filter(x => x !== m); show(r); }
+    draw();
+  }
+  async function joinRoom(room) {
+    busy = true; draw();
+    const co = await company(); if (co.error) { busy = false; return show(co); }
+    show(await co.meetBring(others.find(x => x.room === room), { ...values[rule] }, papers()));
+    busy = false; refresh();
+  }
+  $('open').onclick = async () => {
+    busy = true; draw();
+    const co = await company();
+    if (co.error) show(co);
+    else {
+      if (rule === 'brought') readSheet();
+      const o = rule === 'brought' && !own ? { error: 'Our rule sheet does not pass the checks yet. See the note under it.' } : await co.meetOpen(rule === 'brought' ? { sheet: own } : sheet(), { ...values[rule] }, papers());
+      if (o.error) show(o);
+      else { mine.push({ room: o.room, rule, pool: sheet().kind === 'pool', state: sheet().kind === 'pool' ? 'Open for people · 0 counted' : 'Waiting for a person' }); $('state').innerHTML = `<div class="status wait">Room ${esc(o.room)} opened. Our data waits there, in memory only, for the other side.</div>`; }
+    }
+    busy = false; refresh();
+  };
+  $('sheetText').oninput = () => { readSheet(); $('form').dataset.sig = ''; draw(); };
+  $('name').onchange = () => { names[rule] = $('name').value.trim() || sample().name; announce(); showVault(); };
+  $('reset').onclick = async () => { values[rule] = { ...sample().data }; $('form').dataset.sig = ''; await ensureSamplePapers(true); draw(); };
+  async function refresh() {
+    const st = await call('status').catch(() => null), list = await call('rooms', { rule }).catch(() => null);
+    others = ((list && list.rooms) || []).filter(x => x.waitingFor === 'business');
+    for (const m of mine) {
+      const now = st && st.meetings.find(x => x.room === m.room);
+      if (!now) { m.state = 'Closed'; continue; }
+      m.state = m.pool ? 'Open for people · ' + now.state : now.state.startsWith('met') ? 'Met. Collecting our confirmation token…' : 'Waiting for a person';
+      // Collect when the other side has met us, or when a pool room has new people in it.
+      if (!m.pool && now.state.startsWith('met')) await collect(m.room);
+      if (m.pool && seen[m.room] !== now.state && !now.state.startsWith('0 ')) { seen[m.room] = now.state; await collect(m.room); }
+    }
+    mine = mine.filter(m => m.state !== 'Closed');
+    draw();
+  }
+  async function start() {
+    const s = await MG.ui.groundCard($('ground'), addr, a => { addr = a; store.set('mg', a); call = MG.link(a); mine = []; start(); });
+    trust = MG.ui.trustFrom(s);
+    const got = s ? await call('rules', {}).catch(() => null) : null;
+    rules = ((got && got.rules) || []).filter(r => r.sides.includes('business'));
+    $('rules').innerHTML = rules.map(r => `<button data-r="${esc(r.id)}" aria-pressed="false">${esc(r.field)}</button>`).join('') || '<p class="empty">No middle ground reachable.</p>';
+    $('rules').querySelectorAll('button').forEach(b => b.onclick = () => pick(b.dataset.r));
+    if (rules.length) pick(rules.some(r => r.id === rule) ? rule : rules[0].id);
+  }
+  await start();
+  setInterval(() => { if (busy) return; if (rules.length) refresh(); else start(); }, 2500);
+})();
+</script>
+</body>
+</html>

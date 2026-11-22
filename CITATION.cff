@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use or build on this work, please cite it as below."
+title: "Agent Middleground Protocol (AMP)"
+abstract: "A meeting place for agents and APIs to view each other's data and take back confirmation tokens while ensuring data privacy. The paper and its sample code: an Agent Middleground server, and starter code for personal agents and business agents."
+authors:
+  - given-names: Tony
+    family-names: Mathew
+type: software
+version: "0.1.0"
+date-released: "2026-11-22"
+license: Apache-2.0
+url: "https://tonymcodes.github.io/Agent-Middleground-Protocol/paper/"
+repository-code: "https://github.com/tonymcodes/Agent-Middleground-Protocol"
+keywords:
+  - AI agents
+  - privacy
+  - verification
+  - confirmation tokens

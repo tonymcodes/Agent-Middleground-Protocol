@@ -1,0 +1,6 @@
+# Google App Engine. Deploy only through .github/workflows/deploy.yml, which writes deploy-env.yaml:
+# where the code came from, the public run that deployed it, the address, the audit token and the stamp keys.
+# deploy-env.yaml is never committed and never shown, as it holds the secret stamp key.
+runtime: nodejs22
+includes:
+  - deploy-env.yaml

@@ -1,0 +1,6 @@
+# What is NOT uploaded to the cloud. Everything else in the repo is uploaded, so the whole-repo
+# fingerprint of the running copy is the same as on GitHub.
+.git
+deploy-env.yaml
+middleground/local-cert/
+node_modules/

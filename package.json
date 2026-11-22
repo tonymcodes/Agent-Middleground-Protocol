@@ -1,0 +1,16 @@
+{
+  "name": "agent-middleground-protocol",
+  "version": "0.1.0",
+  "description": "Agent Middleground Protocol (AMP): sample code. An Agent Middleground server, and starter code for personal agents and company systems.",
+  "author": "Tony Mathew",
+  "license": "Apache-2.0",
+  "repository": "github:tonymcodes/Agent-Middleground-Protocol",
+  "private": true,
+  "scripts": {
+    "start": "node middleground/server.js",
+    "test": "node middleground/test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

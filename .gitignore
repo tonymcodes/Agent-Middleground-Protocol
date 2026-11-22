@@ -1,0 +1,3 @@
+node_modules/
+middleground/local-cert/
+deploy-env.yaml

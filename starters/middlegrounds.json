@@ -1,0 +1,5 @@
+[
+  { "name": "Sample host on this computer", "address": "http://localhost:8787", "note": "Start it with: npm start" },
+  { "name": "Example: a cloud provider's middle ground service", "address": "https://middleground.example", "note": "An example entry, not running" },
+  { "name": "Example: a bank-run middle ground", "address": "https://amp.bank.example", "note": "An example entry, not running" }
+]

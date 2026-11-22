@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal agent · meetings</title>
+<link rel="stylesheet" href="../meet.css">
+</head>
+<body>
+<main>
+  <div class="bar"><h1 id="who">Personal agent</h1><p>The person’s side. Sample code: <a href="agent.js">starters/personal-agent</a>. Nothing leaves without the person’s fingerprint.</p></div>
+  <div class="card extra" id="ground"><h2>The middle ground this agent uses</h2><p class="empty">Looking…</p></div>
+  <div class="card extra"><h2>This agent</h2><div id="me" class="small"></div></div>
+  <div class="card usecase"><h2>Use case</h2><div class="chips" id="rules"></div><div class="row" id="sidePick" hidden style="margin-top:8px"><span class="small muted">This agent is the</span><div class="chips" id="sides"></div></div><p class="small muted" id="ruleNote" style="margin:8px 0 0"></p></div>
+  <div class="card"><h2>Rooms open for this use case</h2><div id="rooms"><p class="empty">Looking…</p></div></div>
+  <div class="card">
+    <h2>What my agent will bring</h2>
+    <p class="small muted extra" style="margin:0 0 10px">Values come from the certificate tokens in the vault below. Type over a value and it no longer matches its certificate token: the confirmation token will say “not proven”.</p>
+    <div id="review" class="small" style="margin:0 0 10px"></div>
+    <div id="form"></div>
+    <div class="row" style="margin-bottom:10px"><button class="plain" id="reset">Reset the sample data and tokens</button><button class="plain" id="crowd" hidden>Add 30 sample people</button></div>
+    <label class="small extra" style="display:block;margin-bottom:8px"><input type="checkbox" id="share" checked> Let the other side send me certificate tokens afterwards (an offer letter, a voucher). This shares my agent’s key in the room.</label>
+    <p class="small" id="target"></p>
+    <div class="approve" style="border-top:1px solid #e3e5e8;padding-top:8px;margin-bottom:10px">
+      <div class="small muted extra" style="margin-bottom:4px">The person approves before anything leaves (on a phone: the fingerprint reader). For trying the sample:</div>
+      <label class="small extra" style="display:block"><input type="radio" name="how" value="mimic" checked> Mimic it: tick a box</label>
+      <label class="small extra" style="display:block"><input type="radio" name="how" value="device" id="howDevice"> Real fingerprint on this device (a passkey: fingerprint, face or the device’s PIN)</label>
+      <label class="small" id="mimicRow" style="display:block;margin-top:6px"><input type="checkbox" id="approve"> <b>I approve sending this.</b> <span class="muted">This box stands in for a fingerprint swipe.</span></label>
+      <p class="small muted" id="deviceNote" style="margin:6px 0 0" hidden></p>
+    </div>
+    <div id="listBox" hidden style="margin-bottom:10px;border-top:1px solid #e3e5e8;padding-top:8px"><div class="small"><b>My list for one swipe</b> <span class="muted">Small meetings, seen together here and approved with one swipe. A loan or a sale needs a swipe of its own.</span></div><div id="list"></div></div>
+    <div class="row"><button class="big" id="send">Send with my approval</button><button class="plain" id="addList">Add to my list</button><button class="plain" id="sendList" hidden>Approve the list with one swipe</button><button class="link" id="clearList" hidden>Clear the list</button></div>
+    <div id="state"></div>
+  </div>
+  <div class="card" id="notesCard"><h2>Confirmation tokens this agent holds</h2><div id="notes"><p class="empty">None yet. One arrives when both sides have met.</p></div></div>
+  <div class="card" id="vault"></div>
+</main>
+<script src="../../core/code.js"></script>
+<script src="../../core/stamp.js"></script>
+<script src="../../core/carry.js"></script>
+<script src="../../core/link.js"></script>
+<script src="../../core/paper.js"></script>
+<script src="../../core/swipe.js"></script>
+<script src="../../core/sheet.js"></script>
+<script src="../samples.js"></script>
+<script src="agent.js"></script>
+<script src="../meet-ui.js"></script>
+<script>
+(async () => {
+  const { esc, store, q } = MG.ui, $ = id => document.getElementById(id);
+  let addr = await MG.ui.findGround(), call = MG.link(addr), rules = [], rule = q.get('rule') || store.get('rule') || 'credit-offer', rooms = [], waiting = null, busy = false, trust = MG.ui.trustFrom(null), checks = [];
+  // Which agent this is. ?agent=2 makes a second, separate personal agent in the same browser, for two people meeting.
+  const nth = q.get('agent') || '', who = nth ? 'person' + nth : 'person', sideWanted = {};
+  let list = [], listWaiting = [];   // one swipe for a list: see "My list" below
+  const values = {}, tellOthers = MG.ui.linkUseCase((r, fromParent) => pick(r, fromParent));
+  // THE AGENT. Its key is kept in this browser. A sample agent provider gives it a real person pass.
+  let kt = store.get(who + '.key'); if (!kt) { kt = await MG.stamp.newText(); store.set(who + '.key', kt); }
+  const key = await MG.stamp.load(kt), me = MG.agent(key), keyId = await MG.stamp.keyId(key.open);
+  // When the person makes a passkey for a real fingerprint, the provider names it in the pass, so the middle ground knows
+  // the device is this person's.
+  const provider = await MG.sampleIssuer('Sample agent provider', store);
+  const savedPasskey = () => { try { return JSON.parse(store.get(who + '.passkey') || 'null'); } catch { return null; } };
+  const passFor = pk => provider.paper('real person pass', { verified: 'yes', ...(pk ? { passkey: pk.key } : {}) }, key.open);
+  me.keep(await passFor(savedPasskey()));
+  // THE VAULT: certificate tokens from issuers, kept in this browser.
+  let papers = []; try { papers = JSON.parse(store.get(who + '.vault') || '[]'); } catch {}
+  const keepPapers = list => { papers = list; store.set(who + '.vault', JSON.stringify(papers)); showVault(); };
+  // The sample papers for one use case: what the sample issuers would have sent this person.
+  const samplePapers = async (r, s, data, holder) => { const smp = MG.samples[r] && MG.samples[r][s], out = []; for (const f in ((smp && smp.stamps) || {})) out.push(await (await MG.sampleIssuer(smp.stamps[f], store)).forField(f, data[f], holder)); return out; };
+  const sheet = () => rules.find(r => r.id === rule);
+  // The side of the rule sheet this agent is on: "person", or for two people "seller" or "buyer".
+  const mySides = s => s.sides.filter(x => s.who[x] === 'person');
+  const side = () => { const s = sheet(), all = mySides(s); return all.includes(sideWanted[rule]) ? sideWanted[rule] : all.includes(q.get('side')) ? q.get('side') : all[0]; };
+  const key2 = () => rule + '|' + side();
+  const sample = () => MG.samples[rule] && MG.samples[rule][side()] ? MG.samples[rule][side()] : { name: 'You', data: {} };
+  const defsNow = () => { const s = sheet(), r = room(); return r && r.asks ? r.asks : Array.isArray(s.fields[side()]) ? s.fields[side()] : []; };
+  const announce = () => { if (parent !== window && sheet()) parent.postMessage({ amp: 'agent', who, key: key.open, keyId, name: sample().name + (mySides(sheet() || { sides: [], who: {} }).length > 1 ? ' (' + side() + ')' : '') }, '*'); };
+
+  $('me').innerHTML = `<div>Agent key id <span class="mono">${esc(keyId)}</span> <button class="link" id="copyKey">Copy my full key</button></div>
+    <div class="muted">An issuer signs certificate tokens to this key, so a copy in anyone else’s hands is useless.</div>
+    <div style="margin-top:4px"><span class="badge stamp">real person pass</span> from Sample agent provider<span id="passKey">${savedPasskey() ? ' · names this device’s passkey' : ''}</span></div>`;
+  $('copyKey').onclick = () => { try { navigator.clipboard.writeText(key.open); $('copyKey').textContent = 'Copied'; } catch {} };
+  async function showVault() { checks = await MG.ui.vault($('vault'), { title: 'Certificate tokens in my vault', holder: key.open, papers, trust, onChange: keepPapers }); if (sheet()) draw(); }
+  // A PAPER ARRIVES from an issuer (on the one-page view it comes straight from the issuer's page).
+  addEventListener('message', async e => {
+    if (!e.data) return;
+    if (e.data.amp === 'announce') announce();
+    if (e.data.amp === 'paper' && e.data.to === who && e.data.paper) {
+      const p = e.data.paper;
+      keepPapers([...papers.filter(x => !(x.facts && p.facts && x.facts.field === p.facts.field && x.madeBy === p.madeBy)), p]);
+      if (p.facts && 'field' in p.facts && defsNow().some(d => d.key === p.facts.field)) values[key2()][p.facts.field] = String(p.facts.value);
+      $('state').innerHTML = `<div class="status good">A certificate token arrived from ${esc(p.madeBy)}: ${esc(p.type)}. It is in the vault, checked below.</div>`;
+      draw();
+    }
+  });
+
+  function pick(r, fromParent) {
+    if (!rules.some(x => x.id === r)) return;
+    rule = r; store.set('rule', r); waiting = null; $('state').innerHTML = '';
+    if (!values[key2()]) values[key2()] = { ...sample().data };
+    if (!fromParent) tellOthers(r);
+    $('rules').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.r === r));
+    const s = sheet(), all = mySides(s);
+    $('who').textContent = 'Personal agent · ' + sample().name + (all.length > 1 ? ' (' + side() + ')' : '');
+    $('sidePick').hidden = all.length < 2;
+    $('sides').innerHTML = all.map(x => `<button data-s="${esc(x)}" aria-pressed="${x === side()}">${esc(x)}</button>`).join('');
+    $('sides').querySelectorAll('button').forEach(b => b.onclick = () => { sideWanted[rule] = b.dataset.s; waiting = null; pick(rule, true); });
+    $('ruleNote').innerHTML = `${esc(s.title)} · ${s.kind === 'pool' ? 'a pool room: one office, many people' : all.length > 1 ? 'a pair room: two people' : 'a pair room: one person, one business'} · ${s.brought ? 'the rule sheet comes with the business’s room, and this agent checks it before anything is sent' : 'rule sheet <span class="mono">' + esc(s.fingerprint) + '</span>'}`;
+    $('crowd').hidden = s.kind !== 'pool';
+    announce();
+    ensureSamplePapers().then(refresh);
+  }
+  // The first time a use case is picked, the vault gets the papers its sample issuers would have sent.
+  async function ensureSamplePapers(force) {
+    const stamps = sample().stamps || {}, missing = Object.keys(stamps).filter(f => force || !papers.some(p => p.facts && p.facts.field === f && p.madeBy === stamps[f]));
+    if (!missing.length) return;
+    const fresh = (await samplePapers(rule, side(), sample().data, key.open)).filter(p => missing.includes(p.facts.field));
+    keepPapers([...papers.filter(p => !(p.facts && missing.includes(p.facts.field) && p.madeBy === stamps[p.facts.field])), ...fresh]);
+  }
+  const room = () => rooms.find(x => x.waitingFor === side() || (x.kind === 'pool' && side() === 'person'));
+  function draw() {
+    const s = sheet(), r = room(), defs = defsNow();
+    if (!values[key2()]) values[key2()] = { ...sample().data };
+    MG.ui.form($('form'), defs, values[key2()], side(), (k, v) => MG.ui.proofBadge(papers, checks, k, v));
+    $('rooms').innerHTML = rooms.length ? rooms.map(x => `<div class="room"><b>${esc(x.openedBy)}</b><div class="small muted">${x.kind === 'pool' ? 'Waiting for people · ' + x.people + ' counted so far' : 'Waiting for the ' + esc(x.waitingFor)} · room ${esc(x.room)}</div>
+      ${Object.entries(x.public || {}).map(([k, v]) => `<div class="small">${esc(k)}: <b>${esc(v)}</b></div>`).join('')}</div>`).join('') : '<p class="empty">No room is open for this use case yet.</p>';
+    const canOpen = (s.openedBy || []).includes(side()), other = s.sides.find(x => x !== side());
+    showReview(r);
+    $('target').innerHTML = waiting ? '' : r ? `My agent will go into the room opened by <b>${esc(r.openedBy)}</b>.` : canOpen ? `No room is waiting for me yet. My agent will open one and wait for the ${esc(other)}.` : `Waiting for the ${esc(other)} to open a room. Its questions come with the room.`;
+    $('send').disabled = busy || !!waiting || (!r && !canOpen);
+    $('addList').disabled = busy; $('sendList').disabled = busy;
+  }
+  // THE RULE SHEET FIRST. A room's sheet is read before anything leaves. A sheet the business brought is checked here with
+  // the same checks the middle ground runs, and shown in plain words; the person approves exactly that sheet.
+  async function showReview(r) {
+    if (!r) { $('review').innerHTML = ''; return; }
+    if (!r.sheet) { $('review').innerHTML = `<span class="badge stamp">built-in rule sheet</span> <span class="mono">${esc(r.fingerprint)}</span>, public in middleground/rules.js`; return; }
+    const v = await me.review(r);
+    if (!v.ok) { $('review').innerHTML = `<div class="status bad">This agent will not send anything to this room: ${esc(v.why)}.</div>`; return; }
+    const w = v.words, list = xs => '<ul style="margin:2px 0 6px 18px;padding:0">' + xs.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    $('review').innerHTML = `<div class="paper"><div><span class="badge stamp">rule sheet brought by the business: passes this agent’s checks</span> <span class="mono">${esc(v.fingerprint)}</span></div>
+      <b>${esc(w.title)}</b><div class="muted">I bring:</div>${list(w.bring)}<div class="muted">The business brings:</div>${list(w.otherBrings)}
+      ${w.learn.map(l => `<div class="muted">${esc(l.who)} will learn:</div>${list(l.answers.length ? l.answers : ['nothing'])}`).join('')}
+      <div class="muted">My approval below covers exactly this sheet.</div></div>`;
+  }
+  // PAPERS SENT THROUGH THE MIDDLE GROUND: collected here, checked, and kept in the vault.
+  async function collectMail() {
+    const m = await me.collectPapers(call).catch(() => null), got = (m && m.papers) || [];
+    if (!got.length) return;
+    keepPapers([...papers, ...got]);
+    $('state').innerHTML = `<div class="status good">${got.map(p => esc(p.madeBy) + ' sent a certificate token through the middle ground: ' + esc(p.type)).join('<br>')}. It is in the vault, checked below.</div>`;
+  }
+  async function refresh() {
+    collectMail();
+    const got = await call('rooms', { rule }).catch(() => null);
+    rooms = (got && got.rooms) || [];
+    draw();
+    // A room this agent opened: when the other side has met it, collect the confirmation token.
+    if (waiting) {
+      const st = await call('status').catch(() => null), m = st && st.meetings.find(x => x.room === waiting);
+      if (!m) { $('state').innerHTML = '<div class="status bad">The room closed before the other side came.</div>'; waiting = null; }
+      else if (m.state.startsWith('met')) { const r = await me.meetPickup(call, waiting, side()); waiting = null; got2(r); }
+    }
+    // Rooms opened from a list: collect each confirmation token when the other side has come.
+    if (listWaiting.length) {
+      const st = await call('status').catch(() => null);
+      if (st) { const keep = []; for (const w of listWaiting) { const m = st.meetings.find(x => x.room === w.room); if (m && m.state.startsWith('met')) { got2(await me.meetPickup(call, w.room, w.side)); } else if (m) keep.push(w); } listWaiting = keep; }
+    }
+  }
+  function got2(r) {
+    if (r.error) { $('state').innerHTML = `<div class="status bad">${esc(r.error)}</div>`; draw(); return; }
+    $('state').innerHTML = sheet().kind === 'pool' ? '<div class="status good">Counted. The middle ground wrote this agent a confirmation token and dropped the details; the office gets counts only.</div>' : '<div class="status good">Both sides met. The middle ground wrote a confirmation token for each side, signed it, and wiped the data.</div>';
+    addNote(r.note);
+    draw();
+  }
+  function addNote(n) { if ($('notes').querySelector('.empty')) $('notes').innerHTML = ''; $('notes').prepend(MG.ui.note(n, trust)); setTimeout(() => scrollTo({ top: $('notesCard').offsetTop - 8, behavior: 'smooth' }), 400); }
+  // THE PERSON'S APPROVAL (core/swipe.js): a ticked box standing in for a fingerprint, or a real fingerprint on this device.
+  const howNow = () => document.querySelector('input[name="how"]:checked').value;
+  const showHow = () => { const d = howNow() === 'device'; $('mimicRow').hidden = d; $('deviceNote').hidden = !d; $('send').textContent = d ? 'Approve with fingerprint and send' : 'Send with my approval'; };
+  document.querySelectorAll('input[name="how"]').forEach(r => r.onchange = () => { store.set(who + '.how', howNow()); showHow(); });
+  if (store.get(who + '.how') === 'device') $('howDevice').checked = true;
+  MG.swipe.canUseDevice().then(can => {
+    $('deviceNote').textContent = can ? 'The device will ask for the fingerprint each time. The first time, it also makes a passkey for this agent.' : 'This browser or computer has no fingerprint, face or PIN check available here. Use the ticked box instead.';
+    if (!can) { $('howDevice').disabled = true; document.querySelector('input[name="how"][value="mimic"]').checked = true; }
+    showHow();
+  });
+  showHow();
+  // The approval gets the list of requests on the screen: one, or several from "My list".
+  me.approve(async (holder, purposes) => {
+    if (howNow() === 'mimic') return MG.swipe.mimic(purposes.length);
+    let pk = savedPasskey();
+    if (!pk) {
+      pk = await MG.swipe.register(sample().name); store.set(who + '.passkey', JSON.stringify(pk));
+      me.vault.splice(me.vault.indexOf(me.pass()), 1, await passFor(pk));   // the provider names the new passkey in the pass
+      $('passKey').textContent = ' · names this device’s passkey';
+    }
+    return MG.swipe.device(pk, holder, purposes);
+  });
+  $('send').onclick = async () => {
+    if (howNow() === 'mimic' && !$('approve').checked) { $('state').innerHTML = '<div class="status bad">Tick “I approve sending this” first. It stands in for the fingerprint swipe.</div>'; return; }
+    busy = true; draw();
+    // Ask the middle ground which rooms wait right now, so the agent joins a room the other side has just opened
+    // instead of opening a second one beside it.
+    const now = await call('rooms', { rule }).catch(() => null); if (now && now.rooms) rooms = now.rooms;
+    // The agent brings the values, and every paper in the vault that backs one of this meeting's fields.
+    const keys = defsNow().map(d => d.key), data = { ...values[key2()] }, p = papers.filter(x => x.facts && keys.includes(x.facts.field)), r = room();
+    const share = $('share').checked;
+    if (r) got2(await me.meetBring(call, r, data, p, side(), share));
+    else {
+      const o = await me.meetOpen(call, sheet(), data, p, side(), share);
+      if (o.error) $('state').innerHTML = `<div class="status bad">${esc(o.error)}</div>`;
+      else { waiting = o.room; $('state').innerHTML = `<div class="status wait">Room ${esc(o.room)} opened. My data waits there, in memory only, for the ${esc(o.waitingFor)} to come.</div>`; }
+    }
+    $('approve').checked = false;   // every send needs a fresh approval
+    busy = false; refresh();
+  };
+  // ONE SWIPE FOR A LIST. Small meetings are added here, seen together, and approved with one swipe. A use case whose rule
+  // sheet says ownSwipe (a loan, a sale) cannot be added: it needs a swipe of its own.
+  function drawList() {
+    for (const id of ['listBox', 'sendList', 'clearList']) $(id).hidden = !list.length;
+    $('list').innerHTML = list.map(it => `<div class="small">• ${esc(it.title)} <span class="muted">· as the ${esc(it.side)} · ${esc(Object.keys(it.data).filter(k => it.data[k] !== '').length)} values${it.papers.length ? ', ' + it.papers.length + ' certificate token' + (it.papers.length > 1 ? 's' : '') : ''}</span></div>`).join('');
+  }
+  $('addList').onclick = () => {
+    const s = sheet();
+    if (s.ownSwipe) { $('state').innerHTML = `<div class="status bad">“${esc(s.title)}” needs a swipe of its own, so it cannot go on a list. Send it on its own.</div>`; return; }
+    const keys = defsNow().map(d => d.key);
+    list = [...list.filter(x => x.rule !== rule), { rule, title: s.title, side: side(), data: { ...values[key2()] }, papers: papers.filter(x => x.facts && keys.includes(x.facts.field)), shareKey: $('share').checked }];
+    $('state').innerHTML = `<div class="status good">Added to my list: ${esc(s.title)}. Pick another use case to add more, then approve the list with one swipe.</div>`;
+    drawList();
+  };
+  $('clearList').onclick = () => { list = []; drawList(); $('state').innerHTML = ''; };
+  $('sendList').onclick = async () => {
+    if (howNow() === 'mimic' && !$('approve').checked) { $('state').innerHTML = '<div class="status bad">Tick “I approve sending this” first. It stands in for the fingerprint swipe.</div>'; return; }
+    busy = true; draw();
+    // Fresh rooms for each item, so the agent joins a room the other side has just opened.
+    const items = [], lines = [];
+    for (const it of list) {
+      const s = rules.find(r => r.id === it.rule), got = await call('rooms', { rule: it.rule }).catch(() => null);
+      const r = ((got && got.rooms) || []).find(x => x.waitingFor === it.side || (x.kind === 'pool' && it.side === 'person'));
+      if (r || (s.openedBy || []).includes(it.side)) items.push({ ...it, rule: s, room: r }); else lines.push(it.title + ': no room is open for it yet, so it was left out');
+    }
+    const out = items.length ? await me.meetList(call, items) : [];
+    let bad = lines.length > 0;
+    out.forEach((o, n) => {
+      if (o.note) { addNote(o.note); lines.push(items[n].title + ': met. The confirmation token is below.'); }
+      else if (o.room) { listWaiting.push({ room: o.room, side: items[n].side }); lines.push(items[n].title + ': room opened, waiting for the ' + o.waitingFor + '.'); }
+      else { bad = true; lines.push(items[n].title + ': ' + (o.error || 'not sent')); }
+    });
+    list = []; drawList(); $('approve').checked = false; busy = false;
+    $('state').innerHTML = `<div class="status ${bad ? 'bad' : 'good'}">${items.length ? 'One swipe approved ' + items.length + (items.length > 1 ? ' items' : ' item') + '.<br>' : ''}${lines.map(esc).join('<br>')}</div>`;
+    refresh();
+  };
+  $('reset').onclick = async () => { values[key2()] = { ...sample().data }; $('form').dataset.sig = ''; await ensureSamplePapers(true); draw(); };
+  // A CROWD for a pool room: thirty sample people, each with their own agent, pass and verified ticket.
+  $('crowd').onclick = async () => {
+    const r = room(); if (!r) { $('state').innerHTML = '<div class="status bad">Open the office’s room first, on the business side.</div>'; return; }
+    const C = MG.samples[rule].crowd; let n = 0;
+    $('crowd').disabled = true;
+    for (let i = 0; i < 30; i++) {
+      const k = await MG.stamp.newKey(), a = MG.agent(k); a.keep(await provider.paper('real person pass', { verified: 'yes' }, k.open)); a.approve(() => MG.swipe.mimic());   // sample people: a ticked box each
+      const d = { ...sample().data, ...C(i) };
+      const res = await a.meetBring(call, r, d, await samplePapers(rule, 'person', d, k.open), 'person');
+      if (!res.error) n++;
+      $('state').innerHTML = `<div class="status wait">${n} sample people counted…</div>`;
+    }
+    $('state').innerHTML = `<div class="status good">${n} sample people came into the room. Each got a confirmation token; the ${rule === 'pay-talks' ? 'survey host' : 'office'} gets counts only.</div>`;
+    $('crowd').disabled = false; refresh();
+  };
+  async function start() {
+    const s = await MG.ui.groundCard($('ground'), addr, a => { addr = a; store.set('mg', a); call = MG.link(a); start(); });
+    trust = MG.ui.trustFrom(s);
+    const got = s ? await call('rules', {}).catch(() => null) : null;
+    rules = ((got && got.rules) || []).filter(r => r.sides.some(x => r.who[x] === 'person'));
+    $('rules').innerHTML = rules.map(r => `<button data-r="${esc(r.id)}" aria-pressed="false">${esc(r.field)}</button>`).join('') || '<p class="empty">No middle ground reachable.</p>';
+    $('rules').querySelectorAll('button').forEach(b => b.onclick = () => pick(b.dataset.r));
+    await showVault();
+    if (rules.length) pick(rules.some(r => r.id === rule) ? rule : rules[0].id);
+  }
+  await start();
+  setInterval(() => { if (busy) return; if (rules.length) refresh(); else start(); }, 2500);
+})();
+</script>
+</body>
+</html>

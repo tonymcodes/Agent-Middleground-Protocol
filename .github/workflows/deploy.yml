@@ -1,0 +1,39 @@
+# DEPLOY IN PUBLIC. The only way a host should put this middle ground online.
+# It runs on GitHub, in public: anyone can see which version was deployed, when, and to which address.
+# The deployed middle ground names this run (DEPLOY_RUN), and MG.inspect checks GitHub's own record of it.
+# An auditor then confirms that nothing reached the machine any other way (see core/audit.js).
+#
+# This sample deploys to Google App Engine. For another cloud, change the last three steps.
+# Run it by hand from the Actions tab. It needs, in the repo settings:
+#   variables: PUBLIC_URL (the https address), GCP_PROJECT, and AUDIT_TOKEN and OLD_KEYS when there are any
+#   secrets:   GCP_KEY (a key that can only deploy), STAMP_KEY (from: node middleground/server.js new-key)
+name: Deploy
+run-name: Deploy ${{ github.sha }} to ${{ vars.PUBLIC_URL }}
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test
+        run: node middleground/test.js
+      - name: Code fingerprint of this version
+        run: node middleground/server.js fingerprint
+      - name: Write the deploy settings (never shown, never committed)
+        env:
+          STAMP_KEY: ${{ secrets.STAMP_KEY }}
+          AUDIT_TOKEN: ${{ vars.AUDIT_TOKEN }}
+          OLD_KEYS: ${{ vars.OLD_KEYS }}
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+        run: node core/deploy-env.js > deploy-env.yaml
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_KEY }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy
+        run: gcloud app deploy app.yaml --project "${{ vars.GCP_PROJECT }}" --quiet

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Middleground · rooms</title>
+<link rel="stylesheet" href="../starters/meet.css">
+</head>
+<body class="ground">
+<main>
+  <div class="bar"><h1 id="name">Agent Middleground</h1><p>The neutral room. It runs public code, keeps data in memory only while a room waits, and wipes it when the confirmation tokens are written. <a href="index.html">Its full page</a></p></div>
+  <div class="card extra" id="me"><h2>Who this is</h2><p class="empty">Looking…</p></div>
+  <div class="card"><h2>Rooms right now</h2><div id="rooms"></div><p class="small muted" style="margin:8px 0 0">This list shows what is held, never a value. A pair room is wiped when both sides have met. A pool room keeps counts only.</p></div>
+  <div class="card"><h2>So far</h2><div id="counts"></div></div>
+  <div class="card"><h2>What it did last</h2><div id="recent"></div></div>
+  <div class="card extra"><h2>Rule sheets it runs</h2><div id="rules"></div><p class="small muted" style="margin:8px 0 0">The built-in rule sheets are public, in <a href="rules.js">middleground/rules.js</a>; a business may bring one of its own (core/sheet.js). Each confirmation token names the fingerprint of the sheet that wrote it.</p></div>
+</main>
+<script>
+// Inside the one-page view (try/index.html), only the rooms and what the middle ground did are shown.
+try { if (parent !== window && /\/try\/(index\.html)?$/.test(parent.location.pathname)) document.documentElement.classList.add('in-try'); } catch {}
+(() => {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const base = (new URLSearchParams(location.search).get('mg') || '').replace(/\/$/, ''), api = p => (base ? base + '/api/' : 'api/') + p, $ = id => document.getElementById(id);
+  const left = until => { const m = Math.max(0, Math.round((new Date(until) - Date.now()) / 60000)); return m >= 120 ? Math.round(m / 60) + ' h' : m + ' min'; };
+  fetch(api('rules')).then(r => r.json()).then(g => { $('rules').innerHTML = '<table class="t"><tr><th>Use case</th><th>Room</th><th>Fingerprint</th></tr>' + g.rules.map(r => `<tr><td>${esc(r.title)}</td><td>${esc(r.kind)}</td><td class="mono">${esc(r.fingerprint || "brought with each room")}</td></tr>`).join('') + '</table>'; }).catch(() => {});
+  async function tick() {
+    let s; try { s = await (await fetch(api('status'))).json(); } catch { $('me').innerHTML = '<h2>Who this is</h2><p class="empty">Not reachable.</p>'; return; }
+    $('name').textContent = 'Agent Middleground · ' + s.name;
+    $('me').innerHTML = `<h2>Who this is</h2><table class="t"><tr><td>Address</td><td class="mono">${esc(s.address)}</td></tr><tr><td>Code fingerprint</td><td class="mono">${esc(s.running.codeFingerprint.slice(0, 16))}…</td></tr><tr><td>Key id</td><td class="mono">${esc(s.keyId)}</td></tr><tr><td>Writes files</td><td>${s.running.placesThatWriteAFile ? 'yes' : 'no place in the code'}</td></tr><tr><td>Calls other servers</td><td>${s.running.placesThatCallAnotherServer ? 'yes' : 'no place in the code'}</td></tr></table>`;
+    $('rooms').innerHTML = s.meetings.length ? '<table class="t"><tr><th>Room</th><th>State</th><th>Held inside</th><th>Left</th></tr>' + s.meetings.map(m => `<tr><td><b>${esc(m.title)}</b><div class="mono">${esc(m.room)}</div></td><td>${esc(m.state)}</td><td>${esc(m.inside.join('; '))}</td><td>${left(m.until)}</td></tr>`).join('') + '</table>' : '<p class="empty">No room is open.</p>';
+    const c = s.counts;
+    $('counts').innerHTML = `<table class="t"><tr><td>Rooms opened</td><td>${c.roomsOpened || 0}</td></tr><tr><td>Confirmation tokens written and signed</td><td>${c.notesWritten || 0}</td></tr><tr><td>Values looked at in rooms, then dropped</td><td>${c.valuesDropped}</td></tr><tr><td>Visitors refused</td><td>${c.refused}</td></tr></table>`;
+    $('recent').innerHTML = s.recent.length ? '<table class="t">' + s.recent.slice(0, 8).map(r => `<tr><td class="small muted">${esc(new Date(r.at).toLocaleTimeString())}</td><td>${esc(r.what)}</td></tr>`).join('') + '</table>' : '<p class="empty">Nothing yet.</p>';
+  }
+  tick(); setInterval(tick, 1500);
+})();
+</script>
+</body>
+</html>

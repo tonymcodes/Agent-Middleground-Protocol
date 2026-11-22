@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock issuers · personal agent kit</title>
+<link rel="stylesheet" href="../meet.css">
+</head>
+<body class="issuer">
+<main>
+  <div class="bar"><h1>Mock issuers</h1><p>Part of the personal agent kit: the places a person’s certificate tokens come from. An employer, a shop, a bank, a maker, a ticket office. A business agent issues certificate tokens the same way (see <a href="../company/company.js">company.js</a>). Signing code: <a href="../../core/paper.js">core/paper.js</a>.</p></div>
+  <div class="card extra">
+    <h2>How the signing works, like https</h2>
+    <ol class="small" style="margin:0;padding-left:18px">
+      <li>The issuer makes a key pair once and keeps the secret key in its own system, as a website keeps its certificate key.</li>
+      <li>A registry checks the issuer once and signs a <b>key note</b>: this issuer, at this web address, has this key. That is what a certificate company does for a website.</li>
+      <li>Every certificate token the issuer signs carries its key note, and is issued to one agent’s key.</li>
+      <li>The middle ground keeps a short public list of registries it trusts, like a browser’s list of certificate companies, and checks each token offline: registry → key note → certificate token → this agent.</li>
+    </ol>
+    <p class="small muted" style="margin:8px 0 0">Here the registry is the <b>Sample Business Registry</b>, test only: its secret key is public in <a href="../samples.js">samples.js</a>, so this page can play it.</p>
+  </div>
+  <div class="card">
+    <h2>Issue a certificate token</h2>
+    <div class="chips" id="rules" style="margin-bottom:10px"></div>
+    <label class="f"><span>Token</span><select id="kind"></select></label>
+    <label class="f"><span>Issuer name</span><input type="text" id="iname"></label>
+    <label class="f"><span>Field it backs</span><select id="field"></select></label>
+    <label class="f"><span>What it says</span><textarea id="value" style="min-height:60px"></textarea></label>
+    <div class="row" style="margin-bottom:10px"><label class="small"><input type="checkbox" id="noted" checked> The Sample Business Registry confirms this issuer’s key</label></div>
+    <label class="f"><span>Good for (days)</span><input type="text" id="days" value="365"></label>
+    <label class="f"><span>Issued to</span><select id="to"></select></label>
+    <input type="text" id="toKey" placeholder="Paste the agent’s key, or a business name" hidden style="margin:-4px 0 10px">
+    <button class="big" id="sign">Sign and send</button>
+    <div id="state"></div>
+  </div>
+  <div class="card">
+    <h2>Try a fake token</h2>
+    <p class="small muted" style="margin:0 0 8px">Each one goes to the same agent, for the same field, in place of the real token. The agent’s vault shows why it fails, and so does the other side’s note after a meeting. “Reset the sample data and tokens” on the agent brings the real one back.</p>
+    <div id="fakes"></div>
+  </div>
+  <div class="card extra"><h2>Tokens issued from this page</h2><div id="log"><p class="empty">None yet.</p></div></div>
+</main>
+<script src="../../core/code.js"></script>
+<script src="../../core/stamp.js"></script>
+<script src="../../core/carry.js"></script>
+<script src="../../core/link.js"></script>
+<script src="../../core/paper.js"></script>
+<script src="../samples.js"></script>
+<script src="../meet-ui.js"></script>
+<script>
+(async () => {
+  const { esc, store, q } = MG.ui, $ = id => document.getElementById(id);
+  let addr = await MG.ui.findGround(), call = MG.link(addr), rules = [], rule = q.get('rule') || store.get('rule') || 'credit-offer';
+  const agents = {}, tellOthers = MG.ui.linkUseCase((r, fromParent) => pick(r, fromParent));
+  // A forger keeps its keys apart from the real issuers' keys.
+  const forgerStore = { get: k => store.get('forger:' + k), set: (k, v) => store.set('forger:' + k, v) };
+  const sheet = () => rules.find(r => r.id === rule);
+  // A brought rule sheet's fields come with the business's room; the sample sheet in samples.js stands in for it here.
+  const fieldsOf = s => Array.isArray(sheet().fields[s]) ? sheet().fields[s] : ((MG.samples.brought && MG.samples.brought.sheet[s]) || []);
+  // The papers this use case's samples have, plus a blank one: any field, from an issuer of your own.
+  function kinds() {
+    const out = [], S = MG.samples[rule] || {};
+    const order = [...sheet().sides].sort((a, b) => (sheet().who[a] === 'business') - (sheet().who[b] === 'business'));   // the person's papers first
+    for (const s of order) for (const f in ((S[s] && S[s].stamps) || {})) {
+      const d = fieldsOf(s).find(x => x.key === f) || { label: f };
+      out.push({ issuer: S[s].stamps[f], side: s, field: f, label: d.label, value: S[s].data[f] });
+    }
+    for (const s of sheet().sides) out.push({ issuer: 'Your own issuer', side: s, field: '', label: 'Blank token for the ' + s + ': any field', value: '', blank: true });
+    return out;
+  }
+  const kind = () => kinds()[Number($('kind').value) || 0];
+  // Who can receive: the agents on this page (they say who they are), or a key pasted in.
+  function recipients() {
+    const k = kind(), list = [];
+    const who = sheet().who[k.side];
+    for (const [id, a] of Object.entries(agents)) if ((who === 'business') === (id === 'business')) list.push({ id, label: id === 'business' ? 'Business agent: ' + a.name : 'Personal agent: ' + a.name + ' (key ' + a.keyId + ')' });
+    list.push({ id: 'other', label: who === 'business' ? 'Another business, by name' : 'Another agent, by its key' });
+    return list;
+  }
+  function drawTo() {
+    const keep = $('to').dataset.chosen ? $('to').value : '', list = recipients();
+    $('to').innerHTML = list.map(r => `<option value="${esc(r.id)}">${esc(r.label)}</option>`).join('');
+    if (list.some(r => r.id === keep)) $('to').value = keep;
+    $('toKey').hidden = $('to').value !== 'other';
+  }
+  const heldBy = () => { const id = $('to').value; return id === 'other' ? $('toKey').value.trim() : id === 'business' ? agents.business.name : agents[id].key; };
+  function fillPaper() {
+    const k = kind();
+    $('iname').value = k.blank ? 'Your own issuer' : k.issuer;
+    $('field').innerHTML = fieldsOf(k.side).map(d => `<option value="${esc(d.key)}">${esc(d.label)}</option>`).join('');
+    if (!k.blank) $('field').value = k.field;
+    $('field').disabled = !k.blank;
+    $('value').value = k.blank ? ((MG.samples[rule] && MG.samples[rule][k.side] && MG.samples[rule][k.side].data[$('field').value]) || '') : k.value;
+    drawTo();
+  }
+  function pick(r, fromParent) {
+    if (!rules.some(x => x.id === r)) return;
+    rule = r; store.set('rule', r);
+    if (!fromParent) tellOthers(r);
+    $('rules').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.r === r));
+    $('kind').innerHTML = kinds().map((k, n) => `<option value="${n}">${esc(k.blank ? k.label : k.label + ' · from ' + k.issuer + ' · to the ' + k.side)}</option>`).join('');
+    fillPaper();
+  }
+  // SEND. On the one-page view the paper goes straight to the agent's page. On its own, it is copied, like an email to paste.
+  function deliver(p, what) {
+    const id = $('to').value, line = JSON.stringify(p);
+    if (id !== 'other' && parent !== window) parent.postMessage({ amp: 'paper', to: id, paper: p }, '*');
+    if ($('log').querySelector('.empty')) $('log').innerHTML = '';
+    const row = document.createElement('div'); row.className = what === 'real' ? 'paper' : 'fake';
+    row.innerHTML = `<div class="row" style="justify-content:space-between"><b>${esc(p.type)}</b><span class="small muted">${esc(what === 'real' ? 'real' : 'fake: ' + what)}</span></div>
+      <div class="small">From ${esc(p.madeBy)} to ${esc(id === 'other' ? 'a pasted key' : $('to').selectedOptions[0].textContent)}</div><div class="small mono">${esc(p.facts.value)}</div>
+      <button class="link" data-c>Copy the token</button>`;
+    row.querySelector('[data-c]').onclick = () => { try { navigator.clipboard.writeText(line); row.querySelector('[data-c]').textContent = 'Copied'; } catch {} };
+    $('log').prepend(row);
+    $('state').innerHTML = id !== 'other' && parent !== window ? `<div class="status good">Signed and sent to the agent. Look in its vault.</div>` : `<div class="status good">Signed. Copy it from the list below and paste it into the agent’s “Paste a certificate token”.</div>`;
+  }
+  const base = async () => ({ name: $('iname').value.trim() || 'Your own issuer', field: $('field').value, value: $('value').value, holder: heldBy(), days: Number($('days').value) || 365 });
+  $('sign').onclick = async () => {
+    const b = await base(); if (!b.holder) { $('state').innerHTML = '<div class="status bad">Say who it is issued to.</div>'; return; }
+    const me = await MG.sampleIssuer(b.name, store, $('noted').checked);
+    deliver(await me.forField(b.field, b.value, b.holder, b.days), $('noted').checked ? 'real' : 'its key has no key note');
+  };
+  // FAKES. What a forger could try, and what the checks say.
+  const FAKES = [
+    { what: 'value changed after signing', title: 'Change what it says after signing', expect: 'The signature no longer matches the words.',
+      make: async b => { const p = await (await MG.sampleIssuer(b.name, store)).forField(b.field, b.value, b.holder, b.days); p.facts.value = /\d/.test(b.value) ? b.value.replace(/\d+/g, n => String(Math.round(Number(n) * 1.3))) : b.value + ' (changed)'; return p; } },
+    { what: 'forger’s own key', title: 'A forger signs under the issuer’s name, with its own key', expect: 'No trusted registry confirmed that key.',
+      make: async b => (await MG.sampleIssuer(b.name, forgerStore, false)).forField(b.field, b.value, b.holder, b.days) },
+    { what: 'forged key note', title: 'A forger writes its own key note in the registry’s name', expect: 'The key note is not signed by the registry it names.',
+      make: async b => { const k = await MG.stamp.newKey(), n = await MG.paper.keyNote({ name: MG.sampleRegistry.name, secret: k.secret }, { name: b.name, open: k.open }); return MG.paper.issue({ name: b.name, secret: k.secret, open: k.open, keyNote: n }, b.field, { field: b.field, value: b.value }, b.holder, b.days); } },
+    { what: 'unknown registry', title: 'A key note from a registry nobody trusts', expect: 'The middle ground does not list that registry.',
+      make: async b => { const reg = await MG.stamp.newKey(), k = await MG.stamp.newKey(), n = await MG.paper.keyNote({ name: 'Back Alley Registry', secret: reg.secret }, { name: b.name, open: k.open }); return MG.paper.issue({ name: b.name, secret: k.secret, open: k.open, keyNote: n }, b.field, { field: b.field, value: b.value }, b.holder, b.days); } },
+    { what: 'issued to someone else', title: 'A real token, issued to a different agent', expect: 'It names another agent’s key, so this agent cannot use it.',
+      make: async b => (await MG.sampleIssuer(b.name, store)).forField(b.field, b.value, (await MG.stamp.newKey()).open, b.days) },
+    { what: 'run out', title: 'A real token that has run out', expect: 'Its time is over.',
+      make: async b => (await MG.sampleIssuer(b.name, store)).forField(b.field, b.value, b.holder, -1) },
+  ];
+  $('fakes').innerHTML = FAKES.map((f, n) => `<div class="fake"><b>${esc(f.title)}</b><div class="small muted">${esc(f.expect)}</div><button class="plain" data-fake="${n}" style="margin-top:6px">Make it and send</button></div>`).join('');
+  $('fakes').querySelectorAll('[data-fake]').forEach(btn => btn.onclick = async () => {
+    const b = await base(); if (!b.holder) { $('state').innerHTML = '<div class="status bad">Say who it is issued to.</div>'; return; }
+    const f = FAKES[btn.dataset.fake]; deliver(await f.make(b), f.what);
+  });
+  $('kind').onchange = () => { delete $('to').dataset.chosen; fillPaper(); };
+  $('field').onchange = () => { const k = kind(); if (k.blank) $('value').value = (MG.samples[rule] && MG.samples[rule][k.side] && MG.samples[rule][k.side].data[$('field').value]) || ''; };
+  $('to').onchange = () => { $('to').dataset.chosen = '1'; $('toKey').hidden = $('to').value !== 'other'; };
+  // The agents on the one-page view say who they are.
+  addEventListener('message', e => { if (e.data && e.data.amp === 'agent') { agents[e.data.who] = e.data; if (rules.length) drawTo(); } });
+  if (parent !== window) parent.postMessage({ amp: 'hello' }, '*');
+  async function start() {
+    const s = await MG.ui.status(addr), got = s ? await call('rules', {}).catch(() => null) : null;
+    rules = (got && got.rules) || [];
+    if (!rules.length) { setTimeout(start, 2500); $('rules').innerHTML = '<p class="empty">Waiting for the middle ground, to read its use cases…</p>'; return; }
+    $('rules').innerHTML = rules.map(r => `<button data-r="${esc(r.id)}" aria-pressed="false">${esc(r.field)}</button>`).join('');
+    $('rules').querySelectorAll('button').forEach(b => b.onclick = () => pick(b.dataset.r));
+    pick(rules.some(r => r.id === rule) ? rule : rules[0].id);
+  }
+  start();
+})();
+</script>
+</body>
+</html>

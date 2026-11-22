@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Middleground</title>
+<style>
+  :root { --ink:#1b1f24; --muted:#5d6670; --line:#dfe3e8; --soft:#f5f6f8; --bg:#fff; --blue:#1f6feb; --green:#1a7f37; --greenbg:#e9f6ec; --red:#b42318; --redbg:#fdecea; --amber:#8a5a00; --amberbg:#fff4d6; color-scheme:light; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:0 16px 60px; }
+  h1 { font-size:26px; margin:22px 0 4px; letter-spacing:-.01em; }
+  h2 { font-size:19px; margin:34px 0 4px; padding-top:18px; border-top:1px solid var(--line); }
+  h3 { font-size:14px; margin:0; }
+  p { margin:6px 0; }
+  a { color:var(--blue); }
+  .lead { color:var(--muted); max-width:760px; }
+  .muted { color:var(--muted); } .small { font-size:13px; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12.5px; font-weight:600; background:var(--greenbg); color:var(--green); vertical-align:middle; }
+  .pill.preview { background:var(--amberbg); color:var(--amber); }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); margin-top:12px; }
+  .box { border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; min-width:0; }
+  .box > header { padding:8px 12px; background:var(--soft); border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:baseline; justify-content:space-between; flex-wrap:wrap; }
+  .box > header span { font-size:12.5px; color:var(--muted); }
+  .box > div { padding:10px 12px; }
+  .box.mid > header { background:#eef4ff; }
+  table { border-collapse:collapse; width:100%; font-size:13.5px; }
+  th, td { text-align:left; padding:5px 8px 5px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; color:var(--muted); font-weight:600; }
+  tr:last-child td { border-bottom:0; }
+  td a, .box > header a { display:inline-block; padding:5px 0; }
+  .tw { overflow-x:auto; }
+  code, .mono { font:12.5px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+  pre { margin:8px 0 0; padding:10px 12px; background:var(--soft); border-radius:8px; overflow-x:auto; font:12.5px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .tiles { display:grid; gap:10px; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); margin-top:12px; }
+  .tile { border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .tile b { display:block; font-size:22px; line-height:1.2; }
+  .tile span { font-size:12.5px; color:var(--muted); }
+  .tile.good b { color:var(--green); }
+  button { font:inherit; font-weight:600; padding:8px 14px; border-radius:8px; border:1px solid var(--blue); background:var(--blue); color:#fff; cursor:pointer; }
+  button.plain { background:#fff; color:var(--blue); }
+  button:disabled { opacity:.45; cursor:default; }
+  .steps { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 0; }
+  dl { margin:0; display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:13.5px; }
+  dt { color:var(--muted); } dd { margin:0; overflow-wrap:anywhere; }
+  .step { border:1px solid var(--line); border-radius:8px; padding:7px 10px; margin-bottom:8px; }
+  .step b { font-size:13px; }
+  .step .gave { color:var(--green); font-weight:600; }
+  .hostmsg { border:1px dashed var(--line); border-radius:8px; padding:7px 10px; font-size:13px; }
+  .hostmsg i { font-style:normal; font-size:11.5px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-right:6px; }
+  .empty { color:var(--muted); font-size:13.5px; }
+  .ok { color:var(--green); font-weight:600; } .bad { color:var(--red); font-weight:600; }
+  #viewer { border:1px solid #dfe3e8; border-radius:8px; margin-top:10px; overflow:hidden; }
+  .vhead { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; padding:6px 10px; background:#f6f7f9; font-size:13px; }
+  #vBody { margin:0; max-height:420px; overflow:auto; font:12px/1.5 ui-monospace,Consolas,monospace; padding:6px 0; }
+  #vBody .ln { display:block; white-space:pre; padding-right:10px; }
+  #vBody .ln i { display:inline-block; width:44px; text-align:right; color:#8a94a3; font-style:normal; user-select:none; }
+  #vBody .ln b { display:inline-block; width:18px; text-align:center; font-weight:400; }
+  #vBody .add { background:#e6f4ea; } #vBody .del { background:#fde8e8; }
+  #vBody .gap { display:block; text-align:center; color:#8a94a3; }
+  [hidden] { display:none !important; }
+  .rs td:first-child { white-space:nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Agent Middleground <span class="pill" id="mode"></span></h1>
+  <p class="lead">A neutral room for agents, run by open code. Two sides bring their data to a room under a public rule sheet. The middle ground looks at both together, writes a signed confirmation token for each side, in fixed shapes only, and wipes the data. Nothing is stored. Everyone can see the exact code that is running.</p>
+
+  <h2>Try it</h2>
+  <div class="grid">
+    <section class="box"><header><h3>On one page</h3><span>every side side by side</span></header><div><p>The mock issuers, a personal agent, this middle ground and a business agent, each in its own column. Pick a use case and run a meeting.</p><p><a href="../try/">Open the one-page view</a></p></div></section>
+    <section class="box"><header><h3>Each side on its own</h3><span>as on separate machines</span></header><div><p><a href="../starters/personal-agent/meet.html">The personal agent</a> (it fits a phone), <a href="../starters/company/meet.html">the business agent</a>, <a href="../starters/personal-agent/issuers.html">the mock issuers</a>, and <a href="meetings.html">this middle ground’s rooms</a>. Each page finds this middle ground by itself.</p></div></section>
+  </div>
+
+  <h2>Rule sheets it runs</h2>
+  <p class="lead">Each kind of meeting has a public rule sheet: what each side brings, which values stay private, and what each side may learn, in fixed shapes. Every confirmation token names the fingerprint of the sheet that wrote it. The built-in sheets are in <a href="source/middleground/rules.js">rules.js</a>. A business can also bring a sheet of its own, as plain data, with no change here.</p>
+  <div class="tw"><table class="rs" id="rules"></table></div>
+  <p class="small muted" id="broughtNote"></p>
+
+  <h2>What is running here</h2>
+  <p class="lead" id="runNote"></p>
+  <div class="grid">
+    <section class="box"><header><h3>The code</h3><span id="originNote"></span></header><div>
+      <dl id="origin"></dl>
+      <div class="tw"><table id="files"></table></div>
+      <div class="steps"><button class="plain" id="check" hidden>Check these files against GitHub</button></div>
+      <p class="small muted" id="checkNote"></p>
+      <p class="small muted" id="folderNote"></p>
+      <div id="viewer" hidden><div class="vhead"><span><b id="vName"></b> <span class="muted" id="vInfo"></span></span><button class="plain" id="vClose">Close</button></div><pre id="vBody"></pre></div>
+    </div></section>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div class="grid">
+    <section class="box"><header><h3>What it did last</h3><span>in plain words, with no private detail</span></header><div id="recent"></div></section>
+    <section class="box"><header><h3>Who hosts this copy</h3><span>shown from <a href="host.js" id="hostSrc">host.js</a></span></header><div><div id="host"></div><p class="small muted" id="knownNote"></p></div></section>
+  </div>
+
+  <h2>How the connection is kept safe</h2>
+  <p class="lead">An agent talks to this middle ground the same way a browser talks to any "https" website. Nobody on the internet in between can read or change what is sent, in either direction.</p>
+  <div class="grid">
+    <section class="box"><header><h3>1. Proof of address</h3></header><div><p>The middle ground holds a certificate for its web address, issued by a trusted certificate authority. The agent checks it first. A fake copy at another address cannot pass this check.</p></div></section>
+    <section class="box"><header><h3>2. A fresh secret</h3></header><div><p>The agent and the middle ground agree on a secret key for this one conversation. Nobody listening can work it out, and it is thrown away afterwards.</p></div></section>
+    <section class="box"><header><h3>3. Everything encrypted</h3></header><div><p>Every request and every answer is encrypted with that key. If anything is changed on the way, the receiver notices and drops it.</p></div></section>
+  </div>
+  <p class="lead small" id="safeNote"></p>
+
+  <h2>For agents and businesses</h2>
+  <p class="lead">Any agent or business system can meet here with plain web requests: JSON in, JSON out. The starter code in <code>starters/</code> makes each one a single call.</p>
+  <div class="tw"><table>
+    <tr><th>Address</th><th>Who uses it</th><th>What it does</th></tr>
+    <tr><td class="mono">POST /api/join</td><td>A business or office</td><td>Joins once and gets a key. A business that issues certificate tokens names its open stamp key.</td></tr>
+    <tr><td class="mono">GET /api/rules</td><td>Anyone</td><td>The rule sheets this middle ground runs, each with its fingerprint.</td></tr>
+    <tr><td class="mono">POST /api/open</td><td>Either side</td><td>Opens a room with a built-in rule sheet, or one the business brings, and the data for its side. Names the fingerprint of the sheet it accepts.</td></tr>
+    <tr><td class="mono">GET /api/rooms</td><td>Anyone</td><td>The rooms waiting: public fields, what each asks for, and its rule sheet.</td></tr>
+    <tr><td class="mono">POST /api/bring</td><td>The other side</td><td>Comes into a room with its data and certificate tokens, naming the sheet it accepts. Gets its confirmation token; the data is wiped.</td></tr>
+    <tr><td class="mono">POST /api/pickup</td><td>The side that opened the room</td><td>Collects its confirmation token. A pool room's office gets counts so far.</td></tr>
+    <tr><td class="mono">POST /api/deliver</td><td>A business, after a meeting</td><td>Sends a certificate token it signed (an offer letter) to the key the person shared.</td></tr>
+    <tr><td class="mono">POST /api/mailbox</td><td>A person's agent</td><td>Collects the certificate tokens sent to it.</td></tr>
+    <tr><td class="mono">POST /api/check</td><td>Anyone shown a token</td><td>Checks a token this middle ground made: the stamp, the time, a single use, and the showing of a carried token.</td></tr>
+    <tr><td class="mono">GET /api/key?id=</td><td>Anyone</td><td>The open key for a key id named in a token, so the token can be checked by itself.</td></tr>
+    <tr><td class="mono">GET /api/status, /api/statement, /api/audit</td><td>Anyone</td><td>What is running and the live counts; the host's stamped statement of its code; the latest audit token.</td></tr>
+  </table></div>
+
+  <h2>Host your own</h2>
+  <p class="lead">Any basic cloud server can run this, with nothing to install but Node. Fork the repo, say who you are in host.js, and start it. The repo's README has the steps, including https and the public deploy.</p>
+  <pre>git clone https://github.com/tonymcodes/Agent-Middleground-Protocol
+cd Agent-Middleground-Protocol
+npm start</pre>
+</main>
+
+<script src="../core/code.js"></script>
+<script>
+// This page shows a running middle ground. It reads everything from the server that served it.
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const call = async name => (await fetch('api/' + name)).json();
+
+// ---------- The outside display ----------
+let status = null;
+async function showStatus() {
+  status = await call('status');
+  const run = status.running, c = status.counts, m = status.inMemoryNow;
+  $('mode').textContent = 'Running on this server';
+  $('runNote').textContent = 'This server shows the code it loaded when it started. Read any file, and compare it with the public copy on GitHub.';
+  if (run && $('files').innerHTML) { /* drawn once, so check results stay */ } else if (run) {
+    const o = run.origin;
+    $('originNote').textContent = o.repo && o.version ? 'fetched from GitHub' : 'local copy';
+    $('origin').innerHTML = (o.repo && o.version
+      ? `<dt>Source</dt><dd><a href="${esc(o.repo)}" target="_blank" rel="noopener">${esc(o.repo.replace('https://', ''))}</a></dd><dt>Version</dt><dd class="mono"><a href="${esc(o.repo)}/tree/${esc(o.version)}" target="_blank" rel="noopener">${esc(o.version.slice(0, 12))}</a></dd>`
+      : `<dt>Source</dt><dd>Local copy. Not fetched from GitHub yet.</dd>`)
+      + `<dt>Whole-repo fingerprint</dt><dd><span class="mono" title="${esc(run.repoFingerprint)}">${esc(run.repoFingerprint.slice(0, 16))}…</span> <button class="plain" id="repoFp">Work it out in my browser</button> <a class="small" href="https://github.com/tonymcodes/Agent-Middleground-Protocol/blob/main/core/code.js" target="_blank" rel="noopener" id="repoRule">how</a><br><span class="small" id="repoFpOut"></span></dd>`
+      + `<dt>Code fingerprint</dt><dd class="mono" title="${esc(run.codeFingerprint)}">${esc(run.codeFingerprint.slice(0, 16))}… <span class="small muted">in every token</span></dd><dt>Statement</dt><dd><a href="api/statement" target="_blank">Stamped statement of what is running</a></dd><dt>Deployed by</dt><dd>${o.deployRun ? `<a href="${esc(o.deployRun)}" target="_blank" rel="noopener">The public deploy run on GitHub</a>` : 'Not through the public deploy workflow'}</dd><dt>Audit</dt><dd id="auditRow">None yet</dd><dt>Connection</dt><dd>${status.connection === 'encrypted' ? '<span class="ok">Encrypted (https)</span>' : 'Test on this computer, not encrypted'}</dd><dt>Stamp key</dt><dd class="mono" title="${esc(status.stampKey)}">${esc(status.stampKey.slice(0, 16))}… <span class="small muted">${status.lastingKey ? 'lasting' : 'new at each start'}</span></dd><dt>Running since</dt><dd>${esc(new Date(run.startedAt).toLocaleString())}</dd>`;
+    $('repoRule').href = (o.repo ? o.repo + '/blob/' + (o.version || 'main') : 'source') + '/core/code.js';
+    // THE WHOLE-REPO FINGERPRINT, worked out in the visitor's own browser from every file this server shows, by the rules in code.js.
+    $('repoFp').onclick = async () => {
+      $('repoFpOut').textContent = 'Working it out from ' + run.files.length + ' files…';
+      const fp = await MG.repoFingerprint(run.files.map(f => f.file), async p => { const r = await fetch('source/' + p); return MG.binaryFiles.test(p) ? new Uint8Array(await r.arrayBuffer()) : r.text(); });
+      $('repoFpOut').innerHTML = `Your browser got <span class="mono">${esc(fp.slice(0, 16))}…</span> ` + (fp === run.repoFingerprint ? '<span class="ok">the same as stated</span>' : '<span class="bad">DIFFERENT from what is stated</span>') + (o.repo && o.version ? '. Press “Check these files against GitHub” to work it out from GitHub too.' : '');
+    };
+    fetch('api/audit').then(r => r.ok ? r.json() : null).then(a => { if (a && a.kind === 'audit') $('auditRow').innerHTML = `<a href="api/audit" target="_blank">By ${esc(a.madeBy)}</a>, good until ${esc(new Date(a.goodUntil).toLocaleDateString())}`; }).catch(() => {});
+    $('files').innerHTML = '<tr><th>File</th><th>Lines</th><th>Fingerprint</th><th>In the folder now</th><th>On GitHub</th></tr>' + run.files.map(f =>
+      `<tr><td><a href="source/${esc(f.file)}" ${f.binary ? 'target="_blank"' : `data-view="${esc(f.file)}"`}>${esc(f.file)}</a>${f.runs ? '' : ' <span class="small muted">not run</span>'}</td><td>${f.lines}</td><td class="mono" title="${f.fingerprint}">${f.fingerprint.slice(0, 10)}</td><td data-now="${esc(f.file)}"></td><td data-file="${esc(f.file)}">${o.repo && o.version ? '' : '<span class="muted">no repo yet</span>'}</td></tr>`).join('');
+    $('check').hidden = !(o.repo && o.version);
+    $('checkNote').textContent = o.repo && o.version ? 'The check runs in your browser. It reads each file from this server and from GitHub, and compares them.' : 'When this copy is fetched from GitHub, a button here compares every file with the public copy.';
+  }
+  if (status.folderNow) {
+    for (const f of status.folderNow.files) { const cell = document.querySelector(`[data-now="${f.file}"]`); if (cell) cell.innerHTML = f.state === 'same as loaded' ? '<span class="ok">Same as loaded</span>' : `<span class="bad">${esc(f.state[0].toUpperCase() + f.state.slice(1))}</span>`; }
+    const added = status.folderNow.files.filter(f => f.state === 'added since start').map(f => f.file);
+    $('folderNote').textContent = 'This is every file in the server’s folder. The folder is read again each time this page asks, and each file is compared with the copy that was loaded at start. Press a file name to read it here. '
+      + (added.length ? 'Added since start: ' + added.join(', ') + '. ' : '')
+      + (status.folderNow.closed.length ? 'Not opened: ' + status.folderNow.closed.join(', ') + ' (git’s own records, installed packages, or files that hold a private key).' : '');
+  }
+  const tile = (n, label, good) => `<div class="tile${good ? ' good' : ''}"><b>${n}</b><span>${label}</span></div>`;
+  $('tiles').innerHTML =
+    tile(c.roomsOpened, 'rooms opened') +
+    tile(c.notesWritten, 'confirmation tokens written and signed') +
+    tile(c.valuesDropped, 'values looked at in rooms, then wiped') +
+    tile(m.rooms, 'rooms in memory now') +
+    tile(c.papersPassed, 'certificate tokens passed to agents') +
+    tile(c.refused, 'visitors refused') +
+    tile(c.approvedCode, 'requests that stated approved starter code') +
+    tile(run.placesThatWriteAFile, 'places in the code that write a file', !run.placesThatWriteAFile) +
+    tile(run.placesThatCallAnotherServer, 'places in the code that call another server', !run.placesThatCallAnotherServer);
+  $('safeNote').textContent = status.connection === 'encrypted' ? 'Your connection to this middle ground is encrypted now. Requests that arrive without encryption are refused.' : 'You are testing on the same computer, so this connection is not encrypted. From anywhere else, this middle ground refuses anything that is not encrypted.';
+  $('recent').innerHTML = status.recent.length ? status.recent.map(x => `<div class="step"><span class="small muted">${esc(new Date(x.at).toLocaleTimeString())}</span><br>${esc(x.what)}</div>`).join('') : '<p class="empty">Nothing yet. Try a meeting: see “Try it” below.</p>';
+  $('knownNote').textContent = (status.known.length ? 'Known issuers: ' + status.known.map(x => x.name).join(', ') + '. ' : 'Known issuers: none listed yet. ') + (status.openJoin ? 'This copy lets any company or office join with its own stamp key.' : 'Stamps from anyone else are refused.') + ' The list is in known.js, in the public code.' + (status.starterCode ? ' Starter code: ' + (status.starterCode.accepted.length ? 'this copy accepts ' + status.starterCode.accepted.join(' and ') + '. ' : 'no accepted list in this preview. ') + (status.starterCode.rule === 'only' ? 'A request that does not state one of these is refused.' : 'Every authenticated visitor is served, and requests that state one of these are counted.') : '');
+  const h = status.host;
+  $('hostSrc').href = 'source/middleground/host.js';
+  $('host').innerHTML = h ? `<p><b>${esc(h.name)}</b>. ${esc(h.why)}.</p><div class="hostmsg"><i>Message from the host</i>${esc(h.message.text)}</div><p class="small muted">A host may show one short message. It is written in the public code, so it cannot be changed quietly or aimed at one person.</p>` : '';
+}
+
+// ---------- The file view: read any running file, and see line by line where it differs from GitHub ----------
+const diffs = {};
+function diffLines(theirs, mine) {
+  const A = theirs.split('\n'), B = mine.split('\n'), n = A.length, m = B.length;
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && A[i] === B[j]) { out.push([' ', B[j], j + 1]); i++; j++; }
+    else if (j < m && (i === n || L[i][j + 1] >= L[i + 1][j])) { out.push(['+', B[j], j + 1]); j++; }
+    else { out.push(['-', A[i], i + 1]); i++; }
+  }
+  // keep the changed lines and three lines around each
+  const keep = out.map((r, k) => out.slice(Math.max(0, k - 3), k + 4).some(x => x[0] !== ' '));
+  return out.flatMap((r, k) => keep[k] ? [r] : keep[k - 1] ? [null] : []);
+}
+function showFile(name, info, rows) {
+  $('viewer').hidden = false; $('vName').textContent = name; $('vInfo').textContent = info;
+  $('vBody').innerHTML = rows.map(r => r === null ? '<span class="gap">⋯</span>' : `<span class="ln ${r[0] === '+' ? 'add' : r[0] === '-' ? 'del' : ''}"><i>${r[2]}</i><b>${r[0] === '-' ? '−' : r[0]}</b>${esc(r[1])}</span>`).join('');
+  $('viewer').scrollIntoView({ block: 'nearest' });
+}
+$('vClose').onclick = () => { $('viewer').hidden = true; };
+$('files').onclick = async e => {
+  const a = e.target.closest('a');
+  if (!a) return;
+  if (a.dataset.view) { e.preventDefault(); const t = await (await fetch('source/' + a.dataset.view)).text(); showFile(a.dataset.view, 'as loaded when this server started', t.replace(/\r\n/g, '\n').split('\n').map((l, k) => [' ', l, k + 1])); }
+  if (a.dataset.diff) { e.preventDefault(); const d = diffs[a.dataset.diff]; showFile(a.dataset.diff, 'lines that differ. Green (+) runs here only. Red (−) is on GitHub only.', diffLines(d.there, d.here)); }
+};
+$('check').onclick = async () => {
+  const o = status.running.origin, raw = o.repo.replace('https://github.com/', 'https://raw.githubusercontent.com/') + '/' + o.version + '/';
+  const clean = t => t.replace(/\r\n/g, '\n');
+  let same = 0; const gh = {};
+  for (const f of status.running.files) {
+    const cell = document.querySelector(`[data-file="${f.file}"]`);
+    try {
+      const [here, there] = await Promise.all([fetch('source/' + f.file), fetch(raw + f.file)]);
+      if (!there.ok) { cell.innerHTML = '<span class="bad">Not on GitHub</span>'; continue; }
+      const mine = clean(await here.text()), theirs = clean(await there.text()); gh[f.file] = theirs;
+      if (mine === theirs) { cell.innerHTML = '<span class="ok">Same as GitHub</span>'; same++; }
+      else { diffs[f.file] = { here: mine, there: theirs }; cell.innerHTML = `<a href="#" class="bad" data-diff="${esc(f.file)}">Different: see the lines</a>`; }
+    } catch { cell.innerHTML = '<span class="bad">Could not reach GitHub</span>'; }
+  }
+  // Files that are on GitHub but missing from this folder.
+  let more = '';
+  try {
+    const tree = await (await fetch(o.repo.replace('https://github.com/', 'https://api.github.com/repos/') + '/git/trees/' + o.version + '?recursive=1')).json();
+    const here = status.running.files.map(f => f.file), missing = (tree.tree || []).filter(x => x.type === 'blob' && !here.includes(x.path)).map(x => x.path);
+    if (tree.tree) more = missing.length ? ' On GitHub but not in this folder: ' + missing.join(', ') + '.' : ' Every file on GitHub is also in this folder.';
+    // One fingerprint for the whole repo, worked out from GitHub's own list and GitHub's own copies, by the rules in code.js.
+    if (tree.tree && !tree.truncated) {
+      const fp = await MG.repoFingerprint(tree.tree.filter(x => x.type === 'blob').map(x => x.path), async p => { const r = await fetch(raw + p); return MG.binaryFiles.test(p) ? new Uint8Array(await r.arrayBuffer()) : r.text(); });
+      more += ' The whole-repo fingerprint worked out from GitHub is ' + fp.slice(0, 16) + '…: ' + (fp === status.running.repoFingerprint ? 'the same as this middle ground’s.' : 'DIFFERENT from this middle ground’s.');
+      $('repoFpOut').innerHTML = `From GitHub: <span class="mono">${esc(fp.slice(0, 16))}…</span> ` + (fp === status.running.repoFingerprint ? '<span class="ok">the same as here</span>' : '<span class="bad">DIFFERENT from here</span>');
+    }
+  } catch {}
+  // Work out the code fingerprint again, from GitHub's copies alone, and compare it with the one stamped into every token.
+  try {
+    const hex = async t => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map(b => b.toString(16).padStart(2, '0')).join('');
+    const logic = status.running.logic, parts = [];
+    if (logic.every(f => f in gh)) {
+      for (const f of logic) parts.push(f + ':' + await hex(gh[f]));
+      more += (await hex(parts.join('\n'))) === status.running.codeFingerprint ? ' The code fingerprint worked out from GitHub is the same as the one stamped into every token.' : ' The code fingerprint worked out from GitHub is DIFFERENT from the one stamped into tokens.';
+    }
+  } catch {}
+  $('checkNote').textContent = same + ' of ' + status.running.files.length + ' files are the same as the public copy.' + more;
+};
+
+
+// ---------- The rule sheets ----------
+async function showRules() {
+  const { rules } = await call('rules'), b = rules.find(r => r.brought);
+  $('rules').innerHTML = '<tr><th>Use case</th><th>Room</th><th>Sides</th><th>Fingerprint</th></tr>' + rules.map(r => `<tr><td><b>${esc(r.field)}</b><br><span class="small muted">${esc(r.title)}</span></td><td>${esc(r.kind === 'pool' ? 'pool: one office, many people' : 'pair')}</td><td>${esc(r.sides.join(' and '))}</td><td class="mono">${esc(r.fingerprint || 'its own')}</td></tr>`).join('');
+  $('broughtNote').textContent = b ? 'A brought rule sheet may have at most ' + b.limits.fields + ' fields and ' + b.limits.answers + ' answers for each side, bands of at most ' + b.limits.bands + ' names, and each field tested at most ' + b.limits.testsPerField + ' times for the other side. The person’s agent runs the same checks before it sends anything (core/sheet.js).' : 'This host runs only its built-in rule sheets.';
+}
+
+fetch('api/status').then(r => r.ok ? r.json() : null).catch(() => null).then(s => {
+  if (!s || !s.running) { document.querySelector('main').innerHTML = '<h1>Agent Middleground</h1><p class="lead">This page shows a running middle ground. Start one from the repo folder with <code>npm start</code>, then open <a href="http://localhost:8787">http://localhost:8787</a>.</p>'; return; }
+  showStatus(); showRules(); setInterval(showStatus, 5000);
+});
+</script>
+</body>
+</html>

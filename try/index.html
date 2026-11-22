@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try AMP: all four parts on one page</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9ebee; color: #1d1d1f; font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  header { background: #fff; padding: 12px 18px 4px; }
+  h1 { margin: 0 0 2px; font-size: 19px; }
+  header p { margin: 0 0 10px; font-size: 14px; color: #5a5f66; }
+  .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .steps li { background: #f3f4f6; border-radius: 10px; padding: 8px 12px; font-size: 13.5px; color: #1d1d1f; display: flex; gap: 10px; align-items: flex-start; }
+  .steps span { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #1d1d1f; color: #fff; font-size: 12.5px; font-weight: 700; display: grid; place-items: center; margin-top: 1px; }
+  h2 { margin: 0 0 2px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #5a5f66; }
+  ol { margin: 0; padding-left: 20px; font-size: 13.5px; color: #3a3f46; }
+  .cases { position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #dcdfe4; padding: 10px 18px; display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; }
+  .cases h2 { margin: 0; }
+  .cases .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cases button { font: inherit; font-size: 14px; font-weight: 600; padding: 6px 14px; border-radius: 99px; border: 1px solid #cfd3d9; background: #fff; color: #1d1d1f; cursor: pointer; }
+  .cases button[aria-pressed=true] { background: #1d1d1f; border-color: #1d1d1f; color: #fff; }
+  .cases p { margin: 0; font-size: 13.5px; color: #5a5f66; flex-basis: 100%; }
+  .cases p#caseNote { color: #1d1d1f; font-weight: 600; }
+  .cases p.try { font-style: italic; margin-top: -4px; }
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+  .col { display: flex; flex-direction: column; min-width: 0; }
+  .col b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #5a5f66; margin: 0 0 4px 4px; display: flex; justify-content: space-between; }
+  .col b a { text-transform: none; letter-spacing: 0; font-weight: 500; color: #2c5a85; }
+  iframe { width: 100%; height: calc(100vh - 230px); min-height: 560px; border: 1px solid #cfd3d9; border-radius: 12px; background: #f3f4f6; }
+  @media (max-width: 1300px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } iframe { height: 760px; } }
+  @media (max-width: 760px) { .grid, .steps { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Try the Agent Middleground Protocol</h1>
+  <p>Four parts, each its own page talking over the network. The mock issuers sign certificate tokens. The personal agent and the business agent bring their data to the middle ground, and each side gets back a confirmation token.</p>
+  <ol class="steps">
+    <li><span>1</span><div>Pick a use case below.</div></li>
+    <li><span>2</span><div>Business agent: press <b>Open a room with this data</b>. Its data waits in the middle ground.</div></li>
+    <li><span>3</span><div>Personal agent: tick <b>I approve sending this</b>, then press <b>Send with my approval</b>.</div></li>
+    <li><span>4</span><div>Each side’s confirmation token appears under its button. The middle ground has wiped the data.</div></li>
+  </ol>
+</header>
+<nav class="cases" aria-label="Use case"><h2>Use case</h2><div class="tabs" id="tabs"></div><p id="caseNote"></p><p id="caseTry" class="try"></p></nav>
+<div class="grid">
+  <div class="col"><b>Mock issuers <a href="../starters/personal-agent/issuers.html" target="_blank">open alone</a></b><iframe id="issuer" src="../starters/personal-agent/issuers.html" title="Mock issuers"></iframe></div>
+  <div class="col"><b>Personal agent <a href="../starters/personal-agent/meet.html" target="_blank">open alone</a></b><iframe id="person" src="../starters/personal-agent/meet.html" title="Personal agent"></iframe></div>
+  <div class="col"><b>Agent Middleground <a href="../middleground/meetings.html" target="_blank">open alone</a></b><iframe id="ground" src="../middleground/meetings.html" title="Agent Middleground"></iframe></div>
+  <div class="col"><b><span id="rightName">Business agent</span> <a id="rightAlone" href="../starters/company/meet.html" target="_blank">open alone</a></b><iframe id="business" src="../starters/company/meet.html" title="Business agent"></iframe></div>
+</div>
+<script>
+  // The parent page only passes messages between the columns. It holds no data of its own.
+  //   rule:   keep the use case in step on every side
+  //   agent:  an agent says who it is, so the mock issuers can sign papers to it
+  //   paper:  a mock issuer sends a paper to one agent, the way an email arrives
+  // When two people meet (a seller and a buyer), the right-hand column becomes a second personal agent.
+  //   The use case is picked once, in the bar above the columns, and sent to every column.
+  let rules = [], current = '';
+  const $ = id => document.getElementById(id), esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const frames = () => ['issuer', 'person', 'business'].map(id => $(id));
+  function drawTabs() {
+    $('tabs').innerHTML = rules.map(r => `<button data-r="${esc(r.id)}" aria-pressed="${r.id === current}">${esc(r.field)}</button>`).join('');
+    $('tabs').querySelectorAll('button').forEach(b => b.onclick = () => setRule(b.dataset.r, null));
+    const s = rules.find(r => r.id === current);
+    $('caseNote').textContent = s ? s.title : '';
+    $('caseTry').innerHTML = TRY[current] ? 'Try: ' + TRY[current] : '';
+  }
+  // What to try in each sample use case, shown under the bar.
+  const back = ' After the meeting, the business can send a token back through the middle ground; it lands in the person’s vault, checked.';
+  const TRY = {
+    'credit-offer': 'every certificate token is genuine, so the bank’s confirmation token says yes. Then, on the mock issuers, send a new salary token (say 42000, 41000, 40000): the bank’s token says the income is below its minimum. Or send one of the fakes: the vault shows why it fails, and the bank’s token says “not proven”, with the reason.' + back.replace('a token', 'an offer letter'),
+    'loyalty-discount': 'the shop learns whether the person bought its coffee often enough, with a band for how often, never the bills themselves.' + back.replace('a token', 'a reward voucher'),
+    'shop-offer': 'the shop learns only whether the person is looking for this, and a budget band. The person learns whether the offer fits, and no contact details are shared.',
+    'job-match': 'the employer learns yes or no for skills, degree and pay, and a band for years of experience, never the expected pay itself.' + back.replace('a token', 'an interview invitation'),
+    'event-travel': 'this is a pool room. Open a room on the business side, then press <b>Add 30 sample people</b> on the person’s side. The traffic police get counts only: how many people come from each area, how and when, with small groups hidden.',
+    'used-goods': 'the right column becomes a second personal agent, the buyer. Each side learns whether the other’s price meets its own limit, but neither price limit leaves the room.',
+    'pay-talks': 'this is a pool room. Open a room on the business side, then press <b>Add 30 sample people</b> on the person’s side. Each person gives one verified figure and sees only the summary for their kind of work.',
+    'brought': 'the business writes a rule sheet of its own (a gym offer). The middle ground runs it with no change, and the personal agent checks it and shows what each side will learn before you approve.',
+  };
+  // Keep every column on one use case. "from" is the column that picked it (it has already moved), or null for the bar.
+  function setRule(id, from) {
+    const sheet = rules.find(r => r.id === id); if (!sheet) return;
+    current = id; drawTabs();
+    const people = sheet.sides.filter(s => sheet.who[s] === 'person');
+    const right = $('business'), isPeople = people.length > 1, wasPeople = right.getAttribute('src').includes('agent=2');
+    const want = isPeople ? '../starters/personal-agent/meet.html?agent=2&rule=' + encodeURIComponent(sheet.id) + '&side=' + encodeURIComponent(people[1]) : '../starters/company/meet.html?rule=' + encodeURIComponent(id);
+    if (isPeople !== wasPeople) { right.src = want; $('rightName').textContent = isPeople ? 'Second personal agent' : 'Business agent'; $('rightAlone').href = want; }
+    for (const f of frames()) if (f.contentWindow !== from && !(f === right && isPeople !== wasPeople)) f.contentWindow.postMessage({ amp: 'rule', rule: id }, '*');
+  }
+  const ready = fetch('../api/rules').then(r => r.json()).then(g => { rules = g.rules || []; drawTabs(); }).catch(() => {});
+  addEventListener('message', e => {
+    const m = e.data; if (!m || !m.amp) return;
+    if (m.amp === 'hello') for (const id of ['person', 'business']) $(id).contentWindow.postMessage({ amp: 'announce' }, '*');
+    if (m.amp === 'agent') $('issuer').contentWindow.postMessage(m, '*');
+    if (m.amp === 'paper') (m.to === 'person' ? $('person') : $('business')).contentWindow.postMessage(m, '*');
+    if (m.amp === 'rule') ready.then(() => setRule(m.rule, e.source));
+  });
+</script>
+</body>
+</html>
